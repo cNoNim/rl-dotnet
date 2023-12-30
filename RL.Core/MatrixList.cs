@@ -1,17 +1,14 @@
-using System.Collections;
+using System.Runtime.CompilerServices;
 
 namespace RL.Core;
 
 public readonly struct MatrixList<T>(T[,] array) :
-    IReadOnlyList<MatrixRowList<T>>
+    IStructList<MatrixList<T>, MatrixRowList<T>>
 {
     public int Count => array.GetLength(0);
-
     public MatrixRowList<T> this[int index] => array.Row(index);
 
-    public ReadOnlyListStructEnumerator<MatrixList<T>, MatrixRowList<T>> GetEnumerator() =>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public StructEnumerator<MatrixList<T>, MatrixRowList<T>> GetEnumerator() =>
         new(this);
-
-    IEnumerator<MatrixRowList<T>> IEnumerable<MatrixRowList<T>>.GetEnumerator() => GetEnumerator().AsEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator().AsEnumerator();
 }

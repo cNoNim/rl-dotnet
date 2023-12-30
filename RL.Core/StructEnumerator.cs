@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace RL.Core;
 
-public struct ReadOnlyListStructEnumerator<TList, T> : IStructEnumerator<T>
+public struct StructEnumerator<TList, T> : IStructEnumerator<T>
     where TList : IReadOnlyList<T>
 {
     private readonly TList _list;
@@ -11,19 +11,19 @@ public struct ReadOnlyListStructEnumerator<TList, T> : IStructEnumerator<T>
     private int _next;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ReadOnlyListStructEnumerator(TList list) :
+    public StructEnumerator(TList list) :
         this(list, 0, list.Count)
     {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ReadOnlyListStructEnumerator(TList list, int index) :
+    public StructEnumerator(TList list, int index) :
         this(list, index, list.Count - index)
     {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ReadOnlyListStructEnumerator(TList list, int index, int count)
+    public StructEnumerator(TList list, int index, int count)
     {
         Check(index, count, list.Count);
 
@@ -54,6 +54,7 @@ public struct ReadOnlyListStructEnumerator<TList, T> : IStructEnumerator<T>
         return true;
     }
 
-    public readonly DisposableStructEnumerator<ReadOnlyListStructEnumerator<TList, T>, T> AsEnumerator() =>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public readonly DisposableStructEnumerator<StructEnumerator<TList, T>, T> AsEnumerator() =>
         new(this);
 }

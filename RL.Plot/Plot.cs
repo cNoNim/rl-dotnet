@@ -2,7 +2,7 @@ using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
 
-namespace RL.MonteCarlo;
+namespace RL.Plot;
 
 public static class Plot
 {

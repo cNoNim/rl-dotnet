@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -8,8 +8,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\RL.Plot\RL.Plot.csproj" />
-      <ProjectReference Include="..\RL.Toy\RL.Toy.csproj" />
+        <ProjectReference Include="..\RL.Plot\RL.Plot.csproj" />
+        <ProjectReference Include="..\RL.Toy\RL.Toy.csproj" />
     </ItemGroup>
 
 </Project>

@@ -1,5 +1,6 @@
 using RL.Core;
-using RL.Core.Spaces;
+using RL.Environments;
+using RL.Environments.Spaces;
 using RL.Random;
 
 namespace RL.Toy;
@@ -38,16 +39,17 @@ public class TaxiEnvironment : Environment<int, int>
         const int maxColumn = columns - 1;
 
         var distribution = new double[StateCount];
-        for (var row = 0; row < rows; row++)
-        for (var column = 0; column < columns; column++)
-        for (var passIdx = 0; passIdx <= Locs.Length; passIdx++)
-        for (var destIdx = 0; destIdx < Locs.Length; destIdx++)
+        var locsLength = Locs.Length;
+        foreach (var row in List.Range(rows))
+        foreach (var column in List.Range(columns))
+        foreach (var passIdx in List.Range(locsLength + 1))
+        foreach (var destIdx in List.Range(locsLength))
         {
             var state = Encode(row, column, passIdx, destIdx);
-
-            if (passIdx < Locs.Length && passIdx != destIdx)
+            if (passIdx < locsLength && passIdx != destIdx)
                 distribution[state] += 1;
-            for (var action = 0; action < ActionCount; action++)
+
+            foreach (var action in List.Range(ActionCount))
             {
                 var (newRow, newColumn, newPassIdx) = (row, column, passIdx);
                 var reward = -1;
@@ -69,7 +71,7 @@ public class TaxiEnvironment : Environment<int, int>
                         newColumn = int.Min(column - 1, 0);
                         break;
                     case 4:
-                        if (passIdx < Locs.Length && taxiLocation == Locs[passIdx])
+                        if (passIdx < locsLength && taxiLocation == Locs[passIdx])
                             newPassIdx = 4;
                         else
                             reward = -10;

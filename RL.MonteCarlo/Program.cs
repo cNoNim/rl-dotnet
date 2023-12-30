@@ -1,5 +1,6 @@
 using RL.Core;
-using RL.MonteCarlo;
+using RL.Environments;
+using RL.Plot;
 using RL.Random;
 using RL.Toy;
 
@@ -22,7 +23,7 @@ static IReadOnlyList<double> MonteCarlo(
 
     var observationSpaceCount = environment.ObservationSpace.Size;
     var actionSpaceCount = environment.ActionSpace.Size;
-    var qTable = new double[observationSpaceCount, actionSpaceCount].AsMatrix();
+    var q = new double[observationSpaceCount, actionSpaceCount].AsMatrix();
     var counter = new int[observationSpaceCount, actionSpaceCount].AsMatrix();
 
     var steps = new List<(int state, int action, double reward)>(stepCount);
@@ -36,7 +37,7 @@ static IReadOnlyList<double> MonteCarlo(
         foreach (var _ in List.Range(stepCount))
         {
             var s = state;
-            var action = qTable[state].EpsilonGreedyProbabilities(epsilon).ChoiceIndex(environment.Generator);
+            var action = q[state].EpsilonGreedyProbabilities(epsilon).ChoiceIndex(environment.Generator);
             (state, var reward, var done, var _) = environment.Step(action);
             steps.Add((s, action, reward));
 
@@ -54,7 +55,7 @@ static IReadOnlyList<double> MonteCarlo(
         foreach (var i in List.Range(count))
         {
             var (s, a, _) = steps[i];
-            qTable[s][a] += (returns[i] - qTable[s][a]) / (1 + counter[s][a]);
+            q[s][a] += (returns[i] - q[s][a]) / (1 + counter[s][a]);
             counter[s][a] += 1;
         }
 

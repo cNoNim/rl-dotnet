@@ -1,7 +1,7 @@
-using RL.Core.Spaces;
+using RL.Environments.Spaces;
 using RL.Random;
 
-namespace RL.Core;
+namespace RL.Environments;
 
 public interface IEnvironment<TObservation, TAction>
 {
