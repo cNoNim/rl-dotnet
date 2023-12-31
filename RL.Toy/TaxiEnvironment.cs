@@ -2,6 +2,7 @@ using RL.Core;
 using RL.Environments;
 using RL.Environments.Spaces;
 using RL.Random;
+using static System.Math;
 
 namespace RL.Toy;
 
@@ -21,13 +22,13 @@ public class TaxiEnvironment : Environment<int, int>
         "+---------+"
     ];
 
-    private static readonly (int, int)[] Locs = [(0, 0), (0, 4), (4, 0), (4, 3)];
+    private static readonly (int, int)[] Locations = [(0, 0), (0, 4), (4, 0), (4, 3)];
 
 
-    private readonly MatrixList<List<(double probability, int state, int reward, bool terminated)>>
-        _p = new List<(double probability, int state, int reward, bool terminated)>[StateCount, ActionCount].AsMatrix();
+    internal readonly Matrix<List<(double probability, int state, int reward, bool terminated)>>
+        P = new List<(double probability, int state, int reward, bool terminated)>[StateCount, ActionCount].AsMatrix();
 
-    private readonly IReadOnlyList<double> _initialDistribution;
+    internal readonly IReadOnlyList<double> InitialDistribution;
 
     private int _state;
 
@@ -39,7 +40,9 @@ public class TaxiEnvironment : Environment<int, int>
         const int maxColumn = columns - 1;
 
         var distribution = new double[StateCount];
-        var locsLength = Locs.Length;
+        var sum = 0.0;
+
+        var locsLength = Locations.Length;
         foreach (var row in List.Range(rows))
         foreach (var column in List.Range(columns))
         foreach (var passIdx in List.Range(locsLength + 1))
@@ -47,7 +50,10 @@ public class TaxiEnvironment : Environment<int, int>
         {
             var state = Encode(row, column, passIdx, destIdx);
             if (passIdx < locsLength && passIdx != destIdx)
+            {
                 distribution[state] += 1;
+                sum++;
+            }
 
             foreach (var action in List.Range(ActionCount))
             {
@@ -59,25 +65,25 @@ public class TaxiEnvironment : Environment<int, int>
                 switch (action)
                 {
                     case 0:
-                        newRow = int.Min(row + 1, maxRow);
+                        newRow = Min(row + 1, maxRow);
                         break;
                     case 1:
-                        newRow = int.Max(row - 1, 0);
+                        newRow = Max(row - 1, 0);
                         break;
                     case 2 when Map[1 + row][2 * column + 2] == ':':
-                        newColumn = int.Min(column + 1, maxColumn);
+                        newColumn = Min(column + 1, maxColumn);
                         break;
                     case 3 when Map[1 + row][2 * column] == ':':
-                        newColumn = int.Min(column - 1, 0);
+                        newColumn = Max(column - 1, 0);
                         break;
                     case 4:
-                        if (passIdx < locsLength && taxiLocation == Locs[passIdx])
+                        if (passIdx < locsLength && taxiLocation == Locations[passIdx])
                             newPassIdx = 4;
                         else
                             reward = -10;
                         break;
                     case 5:
-                        if (taxiLocation == Locs[destIdx] && passIdx == 4)
+                        if (taxiLocation == Locations[destIdx] && passIdx == 4)
                         {
                             newPassIdx = destIdx;
                             terminated = true;
@@ -85,7 +91,7 @@ public class TaxiEnvironment : Environment<int, int>
                         }
                         else
                         {
-                            var i = Array.IndexOf(Locs, taxiLocation);
+                            var i = Array.IndexOf(Locations, taxiLocation);
                             if (i >= 0 && passIdx == 4)
                                 newPassIdx = i;
                             else
@@ -96,17 +102,16 @@ public class TaxiEnvironment : Environment<int, int>
                 }
 
                 var newState = Encode(newRow, newColumn, newPassIdx, destIdx);
-                if (_p[state][action] is not { } transitions)
+                if (P[state][action] is not { } transitions)
                 {
                     transitions = [];
-                    _p[state][action] = transitions;
+                    P[state][action] = transitions;
                 }
                 transitions.Add((1.0, newState, reward, terminated));
             }
         }
 
-        var sum = distribution.Sum();
-        _initialDistribution = distribution.Select(d => d / sum);
+        InitialDistribution = distribution.Select(sum, static (s, d) => d / s).ToArray();
 
         return;
 
@@ -126,14 +131,14 @@ public class TaxiEnvironment : Environment<int, int>
     public override Space<int> ActionSpace { get; } = new Discrete(ActionCount);
     public override Space<int> ObservationSpace { get; } = new Discrete(StateCount);
 
-    public override (int observation, double reward, bool terminated, bool truncated) Step(int action)
+    public override (int observation, double reward, bool terminated) Step(int action)
     {
-        var transitions = _p[_state][action];
+        var transitions = P[_state][action];
         var index = transitions.Select(tuple => tuple.probability).ChoiceIndex(Generator);
         (_, _state, var reward, var terminated) = transitions[index];
-        return (_state, reward, terminated, false);
+        return (_state, reward, terminated);
     }
 
     protected override int DoReset() =>
-        _state = _initialDistribution.ChoiceIndex(Generator);
+        _state = InitialDistribution.ChoiceIndex(Generator);
 }

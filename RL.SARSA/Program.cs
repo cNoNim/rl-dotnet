@@ -1,14 +1,25 @@
-﻿using RL.Core;
+﻿using System.Globalization;
+using RL.Core;
 using RL.Environments;
 using RL.Plot;
 using RL.Random;
 using RL.Toy;
+using static RL.Core.List;
 
-var environment = new TaxiEnvironment();
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+
 const int episodeCount = 500;
 const int stepCount = 1000;
+
+var environment = new TaxiEnvironment();
+
 var rewards = Sarsa(environment, episodeCount, stepCount, gamma: 0.999);
-rewards.PlotToSvg("SARSA", "Reward", "Episodes", $"SARSA_{episodeCount}_{stepCount}.svg");
+
+Plot.Create("SARSA")
+    .ConfigureXAxis(c => c.SetTitle("Reward"))
+    .ConfigureYAxis(c => c.SetTitle("Episodes"))
+    .Signal(rewards)
+    .ToPng($"SARSA_{episodeCount}_{stepCount}.png");
 
 return;
 
@@ -26,18 +37,18 @@ static IReadOnlyList<double> Sarsa(
     var actionSpaceCount = environment.ActionSpace.Size;
     var q = new double[observationSpaceCount, actionSpaceCount].AsMatrix();
 
-    foreach (var episode in List.Range(episodeCount))
+    foreach (var episode in Range(episodeCount))
     {
         var totalReward = 0.0;
-        var epsilon = 1.0 - episode / (double)episodeCount;
+        var epsilon = 1.0 / (episode + 1);
 
         var state = environment.Reset();
-        var action = q[state].EpsilonGreedyProbabilities(epsilon).ChoiceIndex(environment.Generator);
+        var action = q[state].EpsilonGreedy(epsilon).ChoiceIndex(environment.Generator);
 
-        foreach (var _ in List.Range(stepCount))
+        foreach (var _ in Range(stepCount))
         {
-            var (nextState, reward, done, _) = environment.Step(action);
-            var nextAction = q[nextState].EpsilonGreedyProbabilities(epsilon).ChoiceIndex(environment.Generator);
+            var (nextState, reward, done) = environment.Step(action);
+            var nextAction = q[nextState].EpsilonGreedy(epsilon).ChoiceIndex(environment.Generator);
 
             q[state][action] += alpha * (reward + gamma * q[nextState][nextAction] - q[state][action]);
 

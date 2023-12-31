@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="All" type="CompoundRunConfigurationType">
+    <toRun name="RL.MonteCarlo" type="DotNetProject" />
+    <toRun name="RL.QLearning" type="DotNetProject" />
+    <toRun name="RL.SARSA" type="DotNetProject" />
+    <method v="2" />
+  </configuration>
+</component>

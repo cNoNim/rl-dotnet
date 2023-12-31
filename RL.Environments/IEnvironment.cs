@@ -9,7 +9,7 @@ public interface IEnvironment<TObservation, TAction>
     Space<TAction> ActionSpace { get; }
     Space<TObservation> ObservationSpace { get; }
 
-    (TObservation observation, double reward, bool terminated, bool truncated)
+    (TObservation observation, double reward, bool terminated)
         Step(TAction action);
 
     TObservation Reset(uint? seed = null);

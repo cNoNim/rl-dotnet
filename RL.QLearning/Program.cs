@@ -1,15 +1,27 @@
-﻿using RL.Core;
+﻿using System.Globalization;
+using RL.Core;
 using RL.Environments;
 using RL.Plot;
 using RL.Random;
 using RL.Toy;
+using static System.Math;
+using static RL.Core.List;
 
-var environment = new TaxiEnvironment();
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+
 const int episodeCount = 500;
 const int noisyEpisodeCount = 400;
 const int stepCount = 1000;
+
+var environment = new TaxiEnvironment();
+
 var rewards = QLearning(environment, episodeCount, noisyEpisodeCount, stepCount, gamma: 0.999);
-rewards.PlotToSvg("Q-Learning", "Reward", "Episodes", $"QLearning_{episodeCount}_{stepCount}.svg");
+
+Plot.Create("Q-Learning")
+    .ConfigureXAxis(c => c.SetTitle("Reward"))
+    .ConfigureYAxis(c => c.SetTitle("Episodes"))
+    .Signal(rewards)
+    .ToPng($"QLearning_{episodeCount}_{stepCount}.png");
 
 return;
 
@@ -29,27 +41,28 @@ static IReadOnlyList<double> QLearning(
     var q = new double[observationSpaceCount, actionSpaceCount].AsMatrix();
     var epsilon = 1.0;
 
-    foreach (var episode in List.Range(episodeCount))
+    foreach (var episode in Range(episodeCount))
     {
         var totalReward = 0.0;
         var state = environment.Reset();
 
-        foreach (var _ in List.Range(stepCount))
+        foreach (var _ in Range(stepCount))
         {
-            var action = q[state].EpsilonGreedyProbabilities(epsilon).ChoiceIndex(environment.Generator);
-            var (nextState, reward, done, _) = environment.Step(action);
+            var action = q[state].EpsilonGreedy(epsilon).ChoiceIndex(environment.Generator);
+            var (nextState, reward, done) = environment.Step(action);
 
             q[state][action] += alpha * (reward + gamma * q[nextState].Max() - q[state][action]);
 
-            state = nextState;
-
             totalReward += reward;
+
             if (done)
                 break;
+
+            state = nextState;
         }
 
-        epsilon = double.Max(0.0, epsilon - 1.0 / noisyEpisodeCount);
         totalRewards[episode] = totalReward;
+        epsilon = Max(0.0, epsilon - 1.0 / noisyEpisodeCount);
     }
 
     return totalRewards;

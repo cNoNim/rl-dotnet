@@ -46,7 +46,7 @@ internal static class XxHash32Algorithm
             h32 = seed + P5;
         }
 
-        h32 += (uint) len;
+        h32 += (uint)len;
 
         while (index <= len - 4)
         {
@@ -105,7 +105,7 @@ internal static class XxHash32Algorithm
             h32 = RotateLeft(v1, 1) + RotateLeft(v2, 7) + RotateLeft(v3, 12) + RotateLeft(v4, 18);
         }
 
-        h32 += (uint) len * 4;
+        h32 += (uint)len * 4;
 
         while (index < len)
         {
@@ -126,7 +126,10 @@ internal static class XxHash32Algorithm
     public static uint Hash(uint seed, params int[] values) =>
         HashList(seed, values);
 
-    public static uint HashList(uint seed, ReadOnlySpan<int> values)
+    public static uint Hash(uint seed, int v1, int v2) =>
+        HashList(seed, [v1, v2]);
+
+    public static uint HashList(uint seed, in ReadOnlySpan<int> values)
     {
         uint h32;
         var index = 0;
@@ -144,24 +147,24 @@ internal static class XxHash32Algorithm
 
             do
             {
-                v1 = SubHash(v1, (uint) values[index]);
+                v1 = SubHash(v1, (uint)values[index]);
                 index++;
-                v2 = SubHash(v2, (uint) values[index]);
+                v2 = SubHash(v2, (uint)values[index]);
                 index++;
-                v3 = SubHash(v3, (uint) values[index]);
+                v3 = SubHash(v3, (uint)values[index]);
                 index++;
-                v4 = SubHash(v4, (uint) values[index]);
+                v4 = SubHash(v4, (uint)values[index]);
                 index++;
             } while (index <= limit);
 
             h32 = RotateLeft(v1, 1) + RotateLeft(v2, 7) + RotateLeft(v3, 12) + RotateLeft(v4, 18);
         }
 
-        h32 += (uint) len * 4;
+        h32 += (uint)len * 4;
 
         while (index < len)
         {
-            h32 += (uint) values[index] * P3;
+            h32 += (uint)values[index] * P3;
             h32 = RotateLeft(h32, 17) * P4;
             index++;
         }
@@ -178,7 +181,7 @@ internal static class XxHash32Algorithm
     public static uint Hash(uint seed, int value)
     {
         var h32 = seed + P5 + 4U;
-        h32 += (uint) value * P3;
+        h32 += (uint)value * P3;
         h32 = RotateLeft(h32, 17) * P4;
         h32 ^= h32 >> 15;
         h32 *= P2;

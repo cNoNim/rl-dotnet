@@ -4,29 +4,28 @@ namespace RL.Core;
 
 public static partial class List
 {
-    public static T? Max<T>(this MatrixRowList<T> sequence)
-        where T : IComparable<T>, IMinMaxValue<T> =>
-        Max<MatrixRowList<T>, T>(sequence);
+    public static T Max<T>(this Matrix<T>.Row sequence)
+        where T : IComparisonOperators<T, T, bool>, IMinMaxValue<T> =>
+        Max<Matrix<T>.Row, T>(sequence);
 
-    public static T? Max<T>(this IReadOnlyList<T> sequence)
-        where T : IComparable<T>, IMinMaxValue<T> =>
+    public static T Max<T>(this IReadOnlyList<T> sequence)
+        where T : IComparisonOperators<T, T, bool>, IMinMaxValue<T> =>
         Max<IReadOnlyList<T>, T>(sequence);
 
-
-    public static T? Max<TList, T>(this TList sequence)
+    public static T Max<TList, T>(this TList sequence)
         where TList : IReadOnlyList<T>
-        where T : IComparable<T>, IMinMaxValue<T>
+        where T : IComparisonOperators<T, T, bool>, IMinMaxValue<T>
     {
-        var maxValue = default(T);
+        var maxValue = T.MinValue;
+        var empty = true;
 
         foreach (var value in sequence.AsStructEnumerable<TList, T>())
         {
-            if (value.CompareTo(maxValue) > 0 || maxValue == null)
-            {
+            empty = false;
+            if (value > maxValue)
                 maxValue = value;
-            }
         }
 
-        return maxValue;
+        return !empty ? maxValue : throw new InvalidOperationException("No Elements");
     }
 }

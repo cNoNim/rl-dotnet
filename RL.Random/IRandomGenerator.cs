@@ -9,8 +9,9 @@ public interface IRandomGenerator
 
 public class RandomGenerator(uint? seed = null) : IRandomGenerator
 {
-    private readonly uint _seed = seed ?? XxHash32Algorithm.Hash(0, System.Random.Shared.Next());
     private int _counter;
+
+    public uint Seed { get; } = seed ?? XxHash32Algorithm.Hash(0, System.Random.Shared.Next());
 
     public double Random(double min, double max) => NextDouble() * (max - min) + min;
 
@@ -22,5 +23,5 @@ public class RandomGenerator(uint? seed = null) : IRandomGenerator
     }
 
     private uint NextState() =>
-        XxHash32Algorithm.Hash(_seed, _counter++);
+        XxHash32Algorithm.Hash(Seed, _counter++);
 }

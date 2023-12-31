@@ -11,7 +11,7 @@ public abstract class Environment<TObservation, TAction> : IEnvironment<TObserva
     public abstract Space<TAction> ActionSpace { get; }
     public abstract Space<TObservation> ObservationSpace { get; }
 
-    public abstract (TObservation observation, double reward, bool terminated, bool truncated)
+    public abstract (TObservation observation, double reward, bool terminated)
         Step(TAction action);
 
     public TObservation Reset(uint? seed = null)

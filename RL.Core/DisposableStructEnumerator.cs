@@ -11,7 +11,7 @@ public struct DisposableStructEnumerator<TEnumerator, T>(
     private TEnumerator _enumerator = enumerator;
     public T Current => _enumerator.Current;
     public bool MoveNext() => _enumerator.MoveNext();
-    public void Reset() => _enumerator = _default;
+    void IEnumerator.Reset() => _enumerator = _default;
     object IEnumerator.Current => Current ?? throw new InvalidOperationException();
     void IDisposable.Dispose()
     {
