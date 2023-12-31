@@ -19,7 +19,7 @@ Plot.Create("SARSA")
     .ConfigureXAxis(c => c.SetTitle("Reward"))
     .ConfigureYAxis(c => c.SetTitle("Episodes"))
     .Signal(rewards)
-    .ToPng($"SARSA_{episodeCount}_{stepCount}.png");
+    .ToPng($"Images/SARSA_{episodeCount}_{stepCount}.png");
 
 return;
 

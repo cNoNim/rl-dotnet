@@ -21,7 +21,7 @@ Plot.Create("Q-Learning")
     .ConfigureXAxis(c => c.SetTitle("Reward"))
     .ConfigureYAxis(c => c.SetTitle("Episodes"))
     .Signal(rewards)
-    .ToPng($"QLearning_{episodeCount}_{stepCount}.png");
+    .ToPng($"Images/QLearning_{episodeCount}_{stepCount}.png");
 
 return;
 

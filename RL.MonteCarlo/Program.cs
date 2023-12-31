@@ -19,7 +19,7 @@ Plot.Create("Monte-Carlo")
     .ConfigureXAxis(c => c.SetTitle("Reward"))
     .ConfigureYAxis(c => c.SetTitle("Episodes"))
     .Signal(rewards)
-    .ToPng($"MonteCarlo_{episodeCount}_{stepCount}.png");
+    .ToPng($"Images/MonteCarlo_{episodeCount}_{stepCount}.png");
 
 return;
 
