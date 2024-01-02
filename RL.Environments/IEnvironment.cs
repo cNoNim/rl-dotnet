@@ -5,9 +5,11 @@ namespace RL.Environments;
 
 public interface IEnvironment<TObservation, TAction>
 {
-    IRandomGenerator Generator { get; }
+    IRandomGenerator Random { get; }
     Space<TAction> ActionSpace { get; }
     Space<TObservation> ObservationSpace { get; }
+
+    static abstract string Name { get; }
 
     (TObservation observation, double reward, bool terminated)
         Step(TAction action);

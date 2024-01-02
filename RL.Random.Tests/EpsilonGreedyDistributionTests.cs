@@ -1,28 +1,34 @@
-using RL.Tests;
+using RL.Generators.Tests;
 using Xunit.Abstractions;
-using static RL.Core.List;
+using static RL.Generators.Generator;
 
 namespace RL.Random.Tests;
 
 public class EpsilonGreedyDistributionTests(ITestOutputHelper output) : TestsBase(output)
 {
+    public static IEnumerable<object[]> Data =>
+        Range(0, 10).Select(i => new object[] { 5, i / 10.0, 100000 });
+
     [Theory]
     [MemberData(nameof(Data))]
     public void EpsilonGreedyDistribution(int count, double epsilon, int valuesCount)
     {
-        var probabilities = Range(count).EpsilonGreedy(epsilon).ToArray();
+        var probabilities = Range<int>(count).EpsilonGreedy(epsilon).ToMDArray();
         var sum = probabilities.Sum();
 
         var seed = XxHash32Algorithm.Hash(0, count, valuesCount);
         var generator = new RandomGenerator(seed);
-        var values = Range(valuesCount)
-            .Select((generator, probabilities), static (tuple, _) => tuple.probabilities.ChoiceIndex(tuple.generator))
-            .ToArray();
+        var values = Range<int>(valuesCount)
+            .Select(
+                (generator, probabilities),
+                static (tuple, _) => tuple.probabilities.ChoiceIndex(tuple.generator)
+            )
+            .ToMDArray();
 
         var distribution = new double[count];
         foreach (var i in values)
             distribution[i]++;
-        distribution = distribution.Select(valuesCount, (c, v) => v / c).ToArray();
+        distribution = distribution.AsGenerator().Select(valuesCount, (c, v) => v / c).ToMDArray();
 
         Output.AppendLine($"seed = {seed}");
         Output.AppendLine($"[{string.Join(", ", probabilities)}].Sum() = {sum}");
@@ -32,7 +38,4 @@ public class EpsilonGreedyDistributionTests(ITestOutputHelper output) : TestsBas
         foreach (var (p, d) in probabilities.Zip(distribution))
             Assert.Equal(p, d, 2);
     }
-
-    public static IEnumerable<object[]> Data =>
-        Range(0, 10).Select(i => new object[] { 5, i / 10.0, 100000 });
 }

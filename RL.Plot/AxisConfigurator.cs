@@ -1,6 +1,6 @@
 namespace RL.Plot;
 
-public class AxisConfigurator
+public struct AxisConfigurator
 {
     public string? Title { get; set; }
     public double? Min { get; set; }

@@ -1,5 +1,5 @@
-using RL.Core;
-using RL.Tests;
+using RL.Generators;
+using RL.Generators.Tests;
 using Xunit.Abstractions;
 
 namespace RL.Toy.Tests;

@@ -4,6 +4,7 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <InvariantGlobalization>true</InvariantGlobalization>
 
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
@@ -23,7 +24,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\RL.Tests\RL.Tests.csproj" />
+        <ProjectReference Include="..\RL.Generators.Tests\RL.Generators.Tests.csproj"/>
       <ProjectReference Include="..\RL.Toy\RL.Toy.csproj" />
     </ItemGroup>
 

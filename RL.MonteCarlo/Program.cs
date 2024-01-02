@@ -1,12 +1,10 @@
-using System.Globalization;
-using RL.Core;
 using RL.Environments;
+using RL.Generators;
+using RL.MDArrays;
 using RL.Plot;
 using RL.Random;
 using RL.Toy;
-using static RL.Core.List;
-
-CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+using static RL.Generators.Generator;
 
 const int episodeCount = 20000;
 const int stepCount = 1000;
@@ -23,32 +21,29 @@ Plot.Create("Monte-Carlo")
 
 return;
 
-static IReadOnlyList<double> MonteCarlo(
+static Array1D<double> MonteCarlo(
     IEnvironment<int, int> environment,
     int episodeCount,
     int stepCount = 500,
     double gamma = 0.99
 )
 {
-    var totalRewards = new double[episodeCount];
-
-    var observationSpaceCount = environment.ObservationSpace.Size;
-    var actionSpaceCount = environment.ActionSpace.Size;
-    var q = new double[observationSpaceCount, actionSpaceCount].AsMatrix();
-    var counter = new int[observationSpaceCount, actionSpaceCount].AsMatrix();
+    var totalRewards = episodeCount.Zeroes<double>();
+    var q = (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
+    var counter = (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<int>();
 
     var steps = new List<(int state, int action, double reward)>(stepCount);
     var returns = new double[stepCount + 1];
 
-    foreach (var episode in Range(episodeCount))
+    foreach (var episode in Range<int>(episodeCount))
     {
         var epsilon = 1.0 - episode / (double)episodeCount;
 
         var state = environment.Reset();
-        foreach (var _ in Range(stepCount))
+        foreach (var _ in Range<int>(stepCount))
         {
             var s = state;
-            var action = q[state].EpsilonGreedy(epsilon).ChoiceIndex(environment.Generator);
+            var action = q[state].EpsilonGreedy(epsilon).ChoiceIndex(environment.Random);
             (state, var reward, var done) = environment.Step(action);
             steps.Add((s, action, reward));
 
@@ -63,7 +58,7 @@ static IReadOnlyList<double> MonteCarlo(
         foreach (var i in Range(count - 1, 0, -1))
             returns[i] = steps[i].reward + gamma * returns[i + 1];
 
-        foreach (var i in Range(count))
+        foreach (var i in Range<int>(count))
         {
             var (s, a, _) = steps[i];
             q[s][a] += (returns[i] - q[s][a]) / (1 + counter[s][a]);

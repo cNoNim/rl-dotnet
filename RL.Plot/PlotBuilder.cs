@@ -4,10 +4,11 @@ using OxyPlot.Axes;
 using OxyPlot.ImageSharp;
 using OxyPlot.Series;
 using RL.Core;
+using RL.Generators;
 
 namespace RL.Plot;
 
-public class PlotBuilder(string title)
+public ref struct PlotBuilder(string title)
 {
     private AxisConfigurator? _xAxisConfigurator;
     private AxisConfigurator? _yAxisConfigurator;
@@ -30,7 +31,7 @@ public class PlotBuilder(string title)
     public PlotBuilder Signal<TList, T>(
         TList data,
         Func<SeriesConfigurator, SeriesConfigurator>? configure = null
-    ) where TList : IReadOnlyList<T> where T : INumberBase<T>
+    ) where TList : IGenerator<T> where T : INumberBase<T>
     {
         _signals.Add((
             data.Select<TList, T, DataPoint>((v, i) =>
@@ -68,9 +69,9 @@ public class PlotBuilder(string title)
             Title = title
         };
         if (_xAxisConfigurator != null)
-            model.Axes.Add(CreateAxis(_xAxisConfigurator, AxisPosition.Left));
+            model.Axes.Add(CreateAxis(_xAxisConfigurator.Value, AxisPosition.Left));
         if (_yAxisConfigurator != null)
-            model.Axes.Add(CreateAxis(_yAxisConfigurator, AxisPosition.Bottom));
+            model.Axes.Add(CreateAxis(_yAxisConfigurator.Value, AxisPosition.Bottom));
 
         foreach (var (signal, configurator) in _signals)
         {

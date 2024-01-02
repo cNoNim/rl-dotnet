@@ -1,12 +1,13 @@
-using RL.Core;
 using RL.Environments;
 using RL.Environments.Spaces;
+using RL.MDArrays;
 using RL.Random;
 using static System.Math;
+using static RL.Generators.Generator;
 
 namespace RL.Toy;
 
-public class TaxiEnvironment : Environment<int, int>
+public class TaxiEnvironment : EnvironmentBase<int, int>, IEnvironment<int, int>
 {
     private const int StateCount = 500;
     private const int ActionCount = 6;
@@ -24,13 +25,11 @@ public class TaxiEnvironment : Environment<int, int>
 
     private static readonly (int, int)[] Locations = [(0, 0), (0, 4), (4, 0), (4, 3)];
 
+    internal readonly Array1D<double> InitialDistribution;
 
-    internal readonly Matrix<List<(double probability, int state, int reward, bool terminated)>>
-        P = new List<(double probability, int state, int reward, bool terminated)>[StateCount, ActionCount].AsMatrix();
 
-    internal readonly IReadOnlyList<double> InitialDistribution;
-
-    private int _state;
+    internal readonly List<(double probability, int state, int reward, bool terminated)>[,]
+        P = new List<(double probability, int state, int reward, bool terminated)>[StateCount, ActionCount];
 
     public TaxiEnvironment()
     {
@@ -39,14 +38,14 @@ public class TaxiEnvironment : Environment<int, int>
         const int columns = 5;
         const int maxColumn = columns - 1;
 
-        var distribution = new double[StateCount];
+        var distribution = StateCount.Zeroes<double>();
         var sum = 0.0;
 
         var locsLength = Locations.Length;
-        foreach (var row in List.Range(rows))
-        foreach (var column in List.Range(columns))
-        foreach (var passIdx in List.Range(locsLength + 1))
-        foreach (var destIdx in List.Range(locsLength))
+        foreach (var row in Range<int>(rows))
+        foreach (var column in Range<int>(columns))
+        foreach (var passIdx in Range<int>(locsLength + 1))
+        foreach (var destIdx in Range<int>(locsLength))
         {
             var state = Encode(row, column, passIdx, destIdx);
             if (passIdx < locsLength && passIdx != destIdx)
@@ -55,7 +54,7 @@ public class TaxiEnvironment : Environment<int, int>
                 sum++;
             }
 
-            foreach (var action in List.Range(ActionCount))
+            foreach (var action in Range<int>(ActionCount))
             {
                 var (newRow, newColumn, newPassIdx) = (row, column, passIdx);
                 var reward = -1;
@@ -102,16 +101,17 @@ public class TaxiEnvironment : Environment<int, int>
                 }
 
                 var newState = Encode(newRow, newColumn, newPassIdx, destIdx);
-                if (P[state][action] is not { } transitions)
+                if (P[state, action] is not { } transitions)
                 {
                     transitions = [];
-                    P[state][action] = transitions;
+                    P[state, action] = transitions;
                 }
+
                 transitions.Add((1.0, newState, reward, terminated));
             }
         }
 
-        InitialDistribution = distribution.Select(sum, static (s, d) => d / s).ToArray();
+        InitialDistribution = distribution.Select(sum, static (s, d) => d / s).ToMDArray();
 
         return;
 
@@ -128,17 +128,20 @@ public class TaxiEnvironment : Environment<int, int>
         }
     }
 
+    internal int State { get; private set; }
     public override Space<int> ActionSpace { get; } = new Discrete(ActionCount);
     public override Space<int> ObservationSpace { get; } = new Discrete(StateCount);
 
     public override (int observation, double reward, bool terminated) Step(int action)
     {
-        var transitions = P[_state][action];
-        var index = transitions.Select(tuple => tuple.probability).ChoiceIndex(Generator);
-        (_, _state, var reward, var terminated) = transitions[index];
-        return (_state, reward, terminated);
+        var transitions = P[State, action].AsGenerator();
+        var index = transitions.Select(tuple => tuple.probability).ChoiceIndex(Random);
+        (_, State, var reward, var terminated) = transitions[index];
+        return (State, reward, terminated);
     }
 
+    static string IEnvironment<int, int>.Name => "Taxi";
+
     protected override int DoReset() =>
-        _state = InitialDistribution.ChoiceIndex(Generator);
+        State = InitialDistribution.ChoiceIndex(Random);
 }

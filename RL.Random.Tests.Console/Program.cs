@@ -1,10 +1,7 @@
-﻿using System.Globalization;
-using RL.Core;
+﻿using RL.MDArrays;
 using RL.Plot;
 using RL.Random;
-using static RL.Core.List;
-
-CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+using static RL.Generators.Generator;
 
 const int count = 100000;
 
@@ -18,16 +15,16 @@ return;
 
 static void EpsilonGreedy(RandomGenerator generator, double epsilon, int count, int valuesCount)
 {
-    var probabilities = Range(valuesCount).EpsilonGreedy(epsilon).ToArray();
+    var probabilities = Range<int>(valuesCount).EpsilonGreedy(epsilon).ToMDArray();
 
-    var ints = Range(count)
+    var ints = Range<int>(count)
         .Select((generator, probabilities), static (tuple, _) => tuple.probabilities.ChoiceIndex(tuple.generator))
-        .ToArray();
+        .ToMDArray();
 
-    var distribution = new double[valuesCount];
+    var distribution = valuesCount.Zeroes<double>();
     foreach (var i in ints)
         distribution[i]++;
-    distribution = distribution.Select(count, (c, v) => v / c).ToArray();
+    distribution = distribution.Select(count, (c, v) => v / c).ToMDArray();
 
     Plot.Create($"RandomGenerator(seed: {generator.Seed}) EpsilonGreedy(epsilon: {epsilon})")
         .ConfigureXAxis(configurator => configurator.SetMin(0.0).SetMax(1.0))

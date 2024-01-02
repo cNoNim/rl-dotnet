@@ -1,6 +1,15 @@
-#### Monte-Carlo
-![MonteCarlo_20000_1000](Images/MonteCarlo_20000_1000.png)
-#### SARSA
-![SARSA_500_1000](Images/SARSA_500_1000.png)
-#### Q-Learning
-![QLearning_500_1000](Images/QLearning_500_1000.png)
+## Cliff Walking
+### Monte-Carlo
+![MonteCarlo](Images/Cliff-Walking_MonteCarlo_500_1000.png)
+### SARSA
+![SARSA](Images/Cliff-Walking_Sarsa_500_1000.png)
+### Q-Learning
+![QLearning](Images/Cliff-Walking_QLearning_500_1000.png)
+
+## Taxi
+### Monte-Carlo
+![MonteCarlo](Images/Taxi_MonteCarlo_500_1000.png)
+### SARSA
+![SARSA](Images/Taxi_Sarsa_500_1000.png)
+### Q-Learning
+![QLearning](Images/Taxi_QLearning_500_1000.png)
