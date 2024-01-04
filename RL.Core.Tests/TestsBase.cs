@@ -1,7 +1,7 @@
 using System.Text;
 using Xunit.Abstractions;
 
-namespace RL.Generators.Tests;
+namespace RL.Core.Tests;
 
 public class TestsBase(ITestOutputHelper output) : IDisposable
 {

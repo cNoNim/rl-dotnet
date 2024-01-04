@@ -1,15 +1,10 @@
 using System.Numerics;
 using RL.Core;
-using RL.MDArrays;
 
 namespace RL.Generators;
 
 public static partial class Generator
 {
-    public static T Max<T>(this Array2D<T>.Row generator)
-        where T : IComparisonOperators<T, T, bool>, IMinMaxValue<T> =>
-        Max<Array2D<T>.Row, T>(generator);
-
     public static T Max<T>(this IGenerator<T> generator)
         where T : IComparisonOperators<T, T, bool>, IMinMaxValue<T> =>
         Max<IGenerator<T>, T>(generator);

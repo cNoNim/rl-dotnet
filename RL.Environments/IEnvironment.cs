@@ -3,16 +3,19 @@ using RL.Random;
 
 namespace RL.Environments;
 
-public interface IEnvironment<TObservation, TAction>
+public interface IEnvironment<out TOSpace, out TASpace, TO, in TA>
+    where TOSpace : ISpace<TO>
+    where TASpace : ISpace<TA>
 {
+    string Name { get; }
+
     IRandomGenerator Random { get; }
-    Space<TAction> ActionSpace { get; }
-    Space<TObservation> ObservationSpace { get; }
+    TOSpace ObservationSpace { get; }
+    TASpace ActionSpace { get; }
 
-    static abstract string Name { get; }
 
-    (TObservation observation, double reward, bool terminated)
-        Step(TAction action);
+    (TO observation, double reward, bool terminated)
+        Step(TA action);
 
-    TObservation Reset(uint? seed = null);
+    TO Reset(uint? seed = null, object? options = null);
 }

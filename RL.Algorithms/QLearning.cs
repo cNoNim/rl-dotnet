@@ -1,7 +1,7 @@
 using RL.Environments;
-using RL.MDArrays;
+using RL.Environments.Spaces;
 using RL.Random;
-using static System.Math;
+using RL.Tensors;
 using static RL.Generators.Generator;
 
 namespace RL.Algorithms;
@@ -9,23 +9,25 @@ namespace RL.Algorithms;
 public readonly struct QLearning(
     int episodeCount,
     int stepCount,
-    int? noisyEpisodeCount = null,
     double gamma = 0.99,
     double alpha = 0.5
-) : IAlgorithm<int, int>
+) : IAlgorithm<Discrete, Discrete, int, int>
 {
-    private readonly int _noisyEpisodeCount = noisyEpisodeCount ?? episodeCount * 80 / 100;
+    public string Name => nameof(QLearning);
 
-    public Array1D<double> Train(IEnvironment<int, int> environment)
+    public (Tensor1D<double> rewards, Tensor2D<double> qTable) Train(
+        IEnvironment<Discrete, Discrete, int, int> environment,
+        Tensor2D<double>? qTable = null
+    )
     {
         var totalRewards = episodeCount.Zeroes<double>();
-        var q = (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
-        var epsilon = 1.0;
+        var q = qTable ?? (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
 
         foreach (var episode in Range<int>(episodeCount))
         {
             var totalReward = 0.0;
             var state = environment.Reset();
+            var epsilon = 1.0 / (episode + 1);
 
             foreach (var _ in Range<int>(stepCount))
             {
@@ -43,11 +45,8 @@ public readonly struct QLearning(
             }
 
             totalRewards[episode] = totalReward;
-            epsilon = Max(0.0, epsilon - 1.0 / _noisyEpisodeCount);
         }
 
-        return totalRewards;
+        return (totalRewards, q);
     }
-
-    static string IAlgorithm<int, int>.Name => nameof(QLearning);
 }

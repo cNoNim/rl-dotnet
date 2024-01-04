@@ -1,6 +1,7 @@
 using RL.Environments;
-using RL.MDArrays;
+using RL.Environments.Spaces;
 using RL.Random;
+using RL.Tensors;
 using static RL.Generators.Generator;
 
 namespace RL.Algorithms;
@@ -9,12 +10,17 @@ public readonly struct MonteCarlo(
     int episodeCount,
     int stepCount,
     double gamma = 0.99
-) : IAlgorithm<int, int>
+) : IAlgorithm<Discrete, Discrete, int, int>
 {
-    public Array1D<double> Train(IEnvironment<int, int> environment)
+    public string Name => nameof(MonteCarlo);
+
+    public (Tensor1D<double> rewards, Tensor2D<double> qTable) Train(
+        IEnvironment<Discrete, Discrete, int, int> environment,
+        Tensor2D<double>? qTable = default
+    )
     {
         var totalRewards = episodeCount.Zeroes<double>();
-        var q = (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
+        var q = qTable ?? (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
         var counter = (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<int>();
 
         var steps = new List<(int state, int action, double reward)>(stepCount);
@@ -22,7 +28,7 @@ public readonly struct MonteCarlo(
 
         foreach (var episode in Range<int>(episodeCount))
         {
-            var epsilon = 1.0 - episode / (double)episodeCount;
+            var epsilon = 1.0 / (episode + 1);
 
             var state = environment.Reset();
             foreach (var _ in Range<int>(stepCount))
@@ -54,8 +60,6 @@ public readonly struct MonteCarlo(
             steps.Clear();
         }
 
-        return totalRewards;
+        return (totalRewards, q);
     }
-
-    static string IAlgorithm<int, int>.Name => nameof(MonteCarlo);
 }

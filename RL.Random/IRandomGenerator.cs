@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using RL.Core;
 
 namespace RL.Random;
 
@@ -11,7 +12,7 @@ public class RandomGenerator(uint? seed = null) : IRandomGenerator
 {
     private int _counter;
 
-    public uint Seed { get; } = seed ?? XxHash32Algorithm.Hash(0, System.Random.Shared.Next());
+    public uint Seed { get; } = seed ?? StableHashCode.Hash(0, System.Random.Shared.Next());
 
     public double Random(double min, double max) => NextDouble() * (max - min) + min;
 
@@ -23,5 +24,5 @@ public class RandomGenerator(uint? seed = null) : IRandomGenerator
     }
 
     private uint NextState() =>
-        XxHash32Algorithm.Hash(Seed, _counter++);
+        StableHashCode.Hash(Seed, _counter++);
 }

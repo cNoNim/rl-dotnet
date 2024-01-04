@@ -2,6 +2,7 @@ using System.Numerics;
 using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.ImageSharp;
+using OxyPlot.Legends;
 using OxyPlot.Series;
 using RL.Core;
 using RL.Generators;
@@ -27,7 +28,6 @@ public ref struct PlotBuilder(string title)
         return this;
     }
 
-
     public PlotBuilder Signal<TList, T>(
         TList data,
         Func<SeriesConfigurator, SeriesConfigurator>? configure = null
@@ -35,7 +35,7 @@ public ref struct PlotBuilder(string title)
     {
         _signals.Add((
             data.Select<TList, T, DataPoint>((v, i) =>
-                new DataPoint(i, double.CreateChecked(v))),
+                new DataPoint(i, double.CreateChecked(v))).AsEnumerable(),
             configure?.Invoke(new SeriesConfigurator())
         ));
         return this;
@@ -68,23 +68,40 @@ public ref struct PlotBuilder(string title)
         {
             Title = title
         };
+
+        model.Legends.Add(new Legend
+        {
+            LegendPlacement = LegendPlacement.Inside,
+            LegendPosition = LegendPosition.RightTop
+        });
+
         if (_xAxisConfigurator != null)
             model.Axes.Add(CreateAxis(_xAxisConfigurator.Value, AxisPosition.Left));
         if (_yAxisConfigurator != null)
             model.Axes.Add(CreateAxis(_yAxisConfigurator.Value, AxisPosition.Bottom));
 
         foreach (var (signal, configurator) in _signals)
+            BuildSignal(signal, configurator);
+
+        return model;
+
+        void BuildSignal(IEnumerable<DataPoint> signal, SeriesConfigurator? configurator)
         {
             var lineSeries = new LineSeries
             {
                 ItemsSource = signal
             };
-            if (configurator?.Color != null)
-                lineSeries.Color = OxyColor.Parse(configurator.Color);
+
+            if (configurator != null)
+            {
+                if (configurator.Title != null)
+                    lineSeries.Title = configurator.Title;
+                if (configurator.Color != null)
+                    lineSeries.Color = OxyColor.Parse(configurator.Color);
+            }
+
             model.Series.Add(lineSeries);
         }
-
-        return model;
     }
 
     private static Axis CreateAxis(AxisConfigurator configurator, AxisPosition position)

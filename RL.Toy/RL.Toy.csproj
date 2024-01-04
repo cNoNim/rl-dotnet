@@ -10,6 +10,7 @@
         <ProjectReference Include="..\RL.Generators\RL.Generators.csproj"/>
       <ProjectReference Include="..\RL.Environments\RL.Environments.csproj" />
       <ProjectReference Include="..\RL.Random\RL.Random.csproj" />
+        <ProjectReference Include="..\RL.Tensors\RL.Tensors.csproj"/>
     </ItemGroup>
 
 </Project>

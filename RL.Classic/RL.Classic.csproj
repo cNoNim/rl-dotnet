@@ -1,16 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <OutputType>Exe</OutputType>
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <InvariantGlobalization>true</InvariantGlobalization>
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\RL.Plot\RL.Plot.csproj" />
-        <ProjectReference Include="..\RL.Toy\RL.Toy.csproj" />
+        <ProjectReference Include="..\RL.Environments\RL.Environments.csproj"/>
+        <ProjectReference Include="..\RL.Tensors\RL.Tensors.csproj"/>
     </ItemGroup>
 
 </Project>

@@ -1,4 +1,6 @@
-using RL.Generators.Tests;
+using RL.Core;
+using RL.Core.Tests;
+using RL.Tensors;
 using Xunit.Abstractions;
 using static RL.Generators.Generator;
 
@@ -7,28 +9,28 @@ namespace RL.Random.Tests;
 public class EpsilonGreedyDistributionTests(ITestOutputHelper output) : TestsBase(output)
 {
     public static IEnumerable<object[]> Data =>
-        Range(0, 10).Select(i => new object[] { 5, i / 10.0, 100000 });
+        Range(0, 10).Select(i => new object[] { 5, i / 10.0, 100000 }).AsEnumerable();
 
     [Theory]
     [MemberData(nameof(Data))]
     public void EpsilonGreedyDistribution(int count, double epsilon, int valuesCount)
     {
-        var probabilities = Range<int>(count).EpsilonGreedy(epsilon).ToMDArray();
+        var probabilities = Range<int>(count).EpsilonGreedy(epsilon).ToTensor();
         var sum = probabilities.Sum();
 
-        var seed = XxHash32Algorithm.Hash(0, count, valuesCount);
+        var seed = StableHashCode.Hash(0, [count, valuesCount]);
         var generator = new RandomGenerator(seed);
         var values = Range<int>(valuesCount)
             .Select(
                 (generator, probabilities),
                 static (tuple, _) => tuple.probabilities.ChoiceIndex(tuple.generator)
             )
-            .ToMDArray();
+            .ToTensor();
 
-        var distribution = new double[count];
+        var distribution = new Tensor1D<double>(count);
         foreach (var i in values)
             distribution[i]++;
-        distribution = distribution.AsGenerator().Select(valuesCount, (c, v) => v / c).ToMDArray();
+        distribution = distribution.Select(valuesCount, (c, v) => v / c).ToTensor();
 
         Output.AppendLine($"seed = {seed}");
         Output.AppendLine($"[{string.Join(", ", probabilities)}].Sum() = {sum}");

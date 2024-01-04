@@ -1,6 +1,7 @@
 using RL.Environments;
-using RL.MDArrays;
+using RL.Environments.Spaces;
 using RL.Random;
+using RL.Tensors;
 using static RL.Generators.Generator;
 
 namespace RL.Algorithms;
@@ -10,9 +11,14 @@ public readonly struct Sarsa(
     int stepCount,
     double gamma = 0.99,
     double alpha = 0.5
-) : IAlgorithm<int, int>
+) : IAlgorithm<Discrete, Discrete, int, int>
 {
-    public Array1D<double> Train(IEnvironment<int, int> environment)
+    public string Name => nameof(Sarsa);
+
+    public (Tensor1D<double> rewards, Tensor2D<double> qTable) Train(
+        IEnvironment<Discrete, Discrete, int, int> environment,
+        Tensor2D<double>? qTable = null
+    )
     {
         var totalRewards = episodeCount.Zeroes<double>();
         var q = (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
@@ -42,8 +48,6 @@ public readonly struct Sarsa(
             totalRewards[episode] = totalReward;
         }
 
-        return totalRewards;
+        return (totalRewards, q);
     }
-
-    static string IAlgorithm<int, int>.Name => nameof(Sarsa);
 }

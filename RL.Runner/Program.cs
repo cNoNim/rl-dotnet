@@ -1,37 +1,42 @@
 ﻿using RL.Algorithms;
 using RL.Environments;
+using RL.Environments.Spaces;
 using RL.Plot;
 using RL.Toy;
 
 const int episodeCount = 500;
 const int stepCount = 1000;
+const double gamma = 0.999;
 
-var monteCarlo = new MonteCarlo(20000, 1000);
-var qLearning = new QLearning(episodeCount, stepCount, gamma: 0.999);
-var sarsa = new Sarsa(episodeCount, stepCount, gamma: 0.999);
+var monteCarlo = new MonteCarlo(episodeCount, stepCount, gamma);
+var qLearning = new QLearning(episodeCount, stepCount, gamma);
+var sarsa = new Sarsa(episodeCount, stepCount, gamma);
 
-TrainEnvironment(new CliffWalkingEnvironment());
-TrainEnvironment(new TaxiEnvironment());
+IAlgorithm<Discrete, Discrete, int, int>[] algorithms =
+[
+    monteCarlo,
+    sarsa,
+    qLearning
+];
+
+TrainEnvironment(new CliffWalkingEnvironment(), algorithms);
+TrainEnvironment(new TaxiEnvironment(), algorithms);
 
 return;
 
-void TrainEnvironment<TEnvironment>(TEnvironment environment)
-    where TEnvironment : IEnvironment<int, int>
+static void TrainEnvironment<TEnvironment>(TEnvironment environment,
+    params IAlgorithm<Discrete, Discrete, int, int>[] algorithms)
+    where TEnvironment : IEnvironment<Discrete, Discrete, int, int>
 {
-    Train(monteCarlo, environment);
-    Train(qLearning, environment);
-    Train(sarsa, environment);
-}
-
-static void Train<TAlgorithm, TEnvironment>(TAlgorithm algorithm, TEnvironment environment)
-    where TAlgorithm : IAlgorithm<int, int>
-    where TEnvironment : IEnvironment<int, int>
-{
-    var rewards = algorithm.Train(environment);
-
-    Plot.Create($"{TAlgorithm.Name} of {TEnvironment.Name}")
+    var builder = Plot.Create(environment.Name)
         .ConfigureXAxis(c => c.SetTitle("Reward"))
-        .ConfigureYAxis(c => c.SetTitle("Episodes"))
-        .Signal(rewards)
-        .ToPng($"Images/{TEnvironment.Name}_{TAlgorithm.Name}_{episodeCount}_{stepCount}.png");
+        .ConfigureYAxis(c => c.SetTitle("Episodes"));
+
+    foreach (var algorithm in algorithms)
+    {
+        var (rewards, _) = algorithm.Train(environment);
+        builder.Signal(rewards, c => c.SetTitle(algorithm.Name));
+    }
+
+    builder.ToPng($"Images/{environment.Name}_{episodeCount}_{stepCount}.png");
 }

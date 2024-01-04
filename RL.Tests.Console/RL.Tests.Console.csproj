@@ -11,6 +11,7 @@
     <ItemGroup>
       <ProjectReference Include="..\RL.Plot\RL.Plot.csproj" />
       <ProjectReference Include="..\RL.Random\RL.Random.csproj" />
+        <ProjectReference Include="..\RL.Tensors\RL.Tensors.csproj"/>
     </ItemGroup>
 
 </Project>

@@ -24,10 +24,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\RL.Core.Tests\RL.Core.Tests.csproj"/>
-        <ProjectReference Include="..\RL.Generators\RL.Generators.csproj"/>
-        <ProjectReference Include="..\RL.Random\RL.Random.csproj"/>
-        <ProjectReference Include="..\RL.Tensors\RL.Tensors.csproj"/>
+        <ProjectReference Include="..\RL.Core\RL.Core.csproj"/>
     </ItemGroup>
 
 </Project>

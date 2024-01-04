@@ -8,7 +8,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\RL.Environments\RL.Environments.csproj"/>
-        <ProjectReference Include="..\RL.MDArrays\RL.MDArrays.csproj"/>
+        <ProjectReference Include="..\RL.Tensors\RL.Tensors.csproj"/>
     </ItemGroup>
 
 </Project>

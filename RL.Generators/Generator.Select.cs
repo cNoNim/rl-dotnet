@@ -1,6 +1,5 @@
 using System.Runtime.CompilerServices;
 using RL.Core;
-using RL.MDArrays;
 
 namespace RL.Generators;
 
@@ -46,13 +45,6 @@ public static partial class Generator
         Func<TContext, T, TTo> selector
     ) where TG : IGenerator<T> =>
         Select<TakeGenerator<TG, T>, T, TTo, TContext>(generator, context, selector);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SelectGenerator<Array1D<T>, T, TTo, TContext> Select<T, TTo, TContext>(
-        this Array1D<T> generator,
-        TContext context,
-        Func<TContext, T, TTo> selector
-    ) => Select<Array1D<T>, T, TTo, TContext>(generator, context, selector);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SelectGenerator<IGenerator<T>, T, TTo, TContext> Select<T, TTo, TContext>(

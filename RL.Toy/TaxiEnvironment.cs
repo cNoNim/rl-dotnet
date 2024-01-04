@@ -1,13 +1,13 @@
 using RL.Environments;
 using RL.Environments.Spaces;
-using RL.MDArrays;
 using RL.Random;
+using RL.Tensors;
 using static System.Math;
 using static RL.Generators.Generator;
 
 namespace RL.Toy;
 
-public class TaxiEnvironment : EnvironmentBase<int, int>, IEnvironment<int, int>
+public class TaxiEnvironment : EnvironmentBase<Discrete, Discrete, int, int>
 {
     private const int StateCount = 500;
     private const int ActionCount = 6;
@@ -25,7 +25,7 @@ public class TaxiEnvironment : EnvironmentBase<int, int>, IEnvironment<int, int>
 
     private static readonly (int, int)[] Locations = [(0, 0), (0, 4), (4, 0), (4, 3)];
 
-    internal readonly Array1D<double> InitialDistribution;
+    internal readonly Tensor1D<double> InitialDistribution;
 
 
     internal readonly List<(double probability, int state, int reward, bool terminated)>[,]
@@ -111,7 +111,7 @@ public class TaxiEnvironment : EnvironmentBase<int, int>, IEnvironment<int, int>
             }
         }
 
-        InitialDistribution = distribution.Select(sum, static (s, d) => d / s).ToMDArray();
+        InitialDistribution = distribution.Select(sum, static (s, d) => d / s).ToTensor();
 
         return;
 
@@ -128,20 +128,18 @@ public class TaxiEnvironment : EnvironmentBase<int, int>, IEnvironment<int, int>
         }
     }
 
-    internal int State { get; private set; }
-    public override Space<int> ActionSpace { get; } = new Discrete(ActionCount);
-    public override Space<int> ObservationSpace { get; } = new Discrete(StateCount);
+    public override string Name => "Taxi";
+    public override Discrete ActionSpace { get; } = new(ActionCount);
+    public override Discrete ObservationSpace { get; } = new(StateCount);
 
-    public override (int observation, double reward, bool terminated) Step(int action)
+    protected override (int observation, double reward, bool terminated) DoStep(int action)
     {
         var transitions = P[State, action].AsGenerator();
         var index = transitions.Select(tuple => tuple.probability).ChoiceIndex(Random);
-        (_, State, var reward, var terminated) = transitions[index];
-        return (State, reward, terminated);
+        var (_, state, reward, terminated) = transitions[index];
+        return (state, reward, terminated);
     }
 
-    static string IEnvironment<int, int>.Name => "Taxi";
-
     protected override int DoReset() =>
-        State = InitialDistribution.ChoiceIndex(Random);
+        InitialDistribution.ChoiceIndex(Random);
 }

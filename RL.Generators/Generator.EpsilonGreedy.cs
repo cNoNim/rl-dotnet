@@ -1,7 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using RL.Core;
-using RL.MDArrays;
 
 namespace RL.Generators;
 
@@ -18,17 +17,6 @@ public static partial class Generator
         where TG : IGenerator<T>
         where T : IComparisonOperators<T, T, bool>, IMinMaxValue<T> =>
         EpsilonGreedy<TakeGenerator<TG, T>, T>(generator, epsilon);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SelectGenerator<
-        TakeGenerator<SequenceGenerator<int>, int>,
-        int,
-        double,
-        (int max, double epsilon, double em)
-    > EpsilonGreedy<T>(
-        this Array2D<T>.Row generator, double epsilon)
-        where T : IComparisonOperators<T, T, bool>, IMinMaxValue<T> =>
-        EpsilonGreedy<Array2D<T>.Row, T>(generator, epsilon);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SelectGenerator<

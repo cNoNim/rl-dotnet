@@ -25,7 +25,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\RL.Generators.Tests\RL.Generators.Tests.csproj"/>
-      <ProjectReference Include="..\RL.Toy\RL.Toy.csproj" />
+        <ProjectReference Include="..\RL.Toy\RL.Toy.csproj"/>
     </ItemGroup>
 
 </Project>

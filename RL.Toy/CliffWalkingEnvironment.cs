@@ -1,19 +1,19 @@
 using RL.Environments;
 using RL.Environments.Spaces;
-using RL.MDArrays;
 using RL.Random;
+using RL.Tensors;
 using static System.Math;
 using static RL.Generators.Generator;
 
 namespace RL.Toy;
 
-public class CliffWalkingEnvironment : EnvironmentBase<int, int>, IEnvironment<int, int>
+public class CliffWalkingEnvironment : EnvironmentBase<Discrete, Discrete, int, int>
 {
     private const int Up = 0;
     private const int Right = 1;
     private const int Down = 2;
     private const int Left = 3;
-    internal readonly Array2D<bool> Cliff;
+    internal readonly Tensor2D<int> Cliff;
     internal readonly List<(double probability, int state, int reward, bool terminated)>[,] P;
 
     internal readonly (int x, int y) Shape = (4, 12);
@@ -28,8 +28,8 @@ public class CliffWalkingEnvironment : EnvironmentBase<int, int>, IEnvironment<i
         var actionSpace = new Discrete(4);
         ObservationSpace = observationSpace;
         ActionSpace = actionSpace;
-        var cliff = Shape.Zeroes<bool>();
-        cliff[3][1..^1].Fill(true);
+        var cliff = Shape.Zeroes<int>();
+        cliff[3][1..^1].Fill(1);
         Cliff = cliff;
 
         P = new List<(double probability, int state, int reward, bool terminated)>[observationSpace.Size,
@@ -45,23 +45,19 @@ public class CliffWalkingEnvironment : EnvironmentBase<int, int>, IEnvironment<i
         }
     }
 
-    internal int State { get; private set; }
+    public override string Name => "Cliff-Walking";
+    public override Discrete ActionSpace { get; }
+    public override Discrete ObservationSpace { get; }
 
-    public override Space<int> ActionSpace { get; }
-
-    public override Space<int> ObservationSpace { get; }
-
-    public override (int observation, double reward, bool terminated) Step(int action)
+    protected override (int observation, double reward, bool terminated) DoStep(int action)
     {
         var transitions = P[State, action].AsGenerator();
         var index = transitions.Select(tuple => tuple.probability).ChoiceIndex(Random);
-        (_, State, var reward, var terminated) = transitions[index];
-        return (State, reward, terminated);
+        var (_, state, reward, terminated) = transitions[index];
+        return (state, reward, terminated);
     }
 
-    public static string Name => "Cliff-Walking";
-
-    protected override int DoReset() => State = StartState;
+    protected override int DoReset() => StartState;
 
     private List<(double probability, int state, int reward, bool terminated)> CalculateTransitionProbability(
         (int x, int y) position,
@@ -72,7 +68,7 @@ public class CliffWalkingEnvironment : EnvironmentBase<int, int>, IEnvironment<i
         var (xDelta, yDelta) = delta;
         var newPosition = LimitPosition((x + xDelta, y + yDelta));
         var newState = newPosition.Flatten(Shape);
-        return Cliff[newPosition]
+        return Cliff[newPosition] != 0
             ? [(1.0, StartState, -100, false)]
             : [(1.0, newState, -1, newState == TerminateState)];
     }
