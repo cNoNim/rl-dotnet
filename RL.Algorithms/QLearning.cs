@@ -1,53 +1,57 @@
+using RL.Core;
 using RL.Environments;
+using RL.Environments.Spaces;
 using RL.MDArrays;
 using RL.Random;
-using static System.Math;
 using static RL.Generators.Generator;
 
 namespace RL.Algorithms;
 
 public readonly struct QLearning(
-    int episodeCount,
+    IGenerator<int> episodeGenerator,
     int stepCount,
-    int? noisyEpisodeCount = null,
     double gamma = 0.99,
     double alpha = 0.5
-) : IAlgorithm<int, int>
+) : IDiscreteAlgorithm
 {
-    private readonly int _noisyEpisodeCount = noisyEpisodeCount ?? episodeCount * 80 / 100;
+    public string Name => nameof(QLearning);
 
-    public Array1D<double> Train(IEnvironment<int, int> environment)
+
+    public Array2D<double> CreateQ(IEnvironment<Discrete, Discrete, int, int> environment) =>
+        (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
+
+    public (Array1D<double> rewards, Array2D<double> qTable) Train(
+        IEnvironment<Discrete, Discrete, int, int> environment,
+        Array2D<double>? qTable = null
+    )
     {
-        var totalRewards = episodeCount.Zeroes<double>();
-        var q = (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
-        var epsilon = 1.0;
+        var totalRewards = episodeGenerator.Count.Zeroes<double>();
+        var q = qTable ?? CreateQ(environment);
 
-        foreach (var episode in Range<int>(episodeCount))
+        foreach (var episode in episodeGenerator.AsGeneratorEnumerable())
         {
             var totalReward = 0.0;
             var state = environment.Reset();
+            var epsilon = 1.0 / (episode + 1);
 
             foreach (var _ in Range<int>(stepCount))
             {
                 var action = q[state].EpsilonGreedy(epsilon).ChoiceIndex(environment.Random);
-                var (nextState, reward, done) = environment.Step(action);
+                var t = environment.Step(action);
 
-                q[state][action] += alpha * (reward + gamma * q[nextState].Max() - q[state][action]);
+                q[t.State][t.Action] += alpha * (t.Reward + gamma * q[t.NextState].Max() - q[t.State][t.Action]);
 
-                totalReward += reward;
+                totalReward += t.Reward;
 
-                if (done)
+                if (t.Terminated || t.Truncated)
                     break;
 
-                state = nextState;
+                state = t.NextState;
             }
 
             totalRewards[episode] = totalReward;
-            epsilon = Max(0.0, epsilon - 1.0 / _noisyEpisodeCount);
         }
 
-        return totalRewards;
+        return (totalRewards, q);
     }
-
-    static string IAlgorithm<int, int>.Name => nameof(QLearning);
 }

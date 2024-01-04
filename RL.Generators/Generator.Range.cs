@@ -6,6 +6,10 @@ namespace RL.Generators;
 public static partial class Generator
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static TakeGenerator<SequenceGenerator<int>, int> Range(int count) =>
+        Sequence<int>().Take<SequenceGenerator<int>, int>(count);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TakeGenerator<SequenceGenerator<T>, T> Range<T>(int count)
         where T : INumberBase<T> =>
         Sequence<T>().Take<SequenceGenerator<T>, T>(count);

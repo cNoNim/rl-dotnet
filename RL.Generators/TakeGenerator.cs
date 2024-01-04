@@ -1,10 +1,13 @@
+using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using RL.Core;
+using static System.Math;
 
 namespace RL.Generators;
 
 public readonly struct TakeGenerator<TG, T>(TG generator, int count) :
-    IFiniteGenerator<TakeGenerator<TG, T>, T>
+    IGenerator<TakeGenerator<TG, T>, T>
     where TG : IGenerator<T>
 {
     public T this[int index]
@@ -20,7 +23,22 @@ public readonly struct TakeGenerator<TG, T>(TG generator, int count) :
         }
     }
 
-    public int Count { get; } = generator.IsFinite ? Math.Min(generator.Count, count) : count;
-
     public GeneratorEnumerator<TakeGenerator<TG, T>, T> GetEnumerator() => new(this);
+    public int Count { get; } = generator.IsFinite ? Min(generator.Count, count) : count;
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool IsFinite => true;
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool TryGetNext(int current, out int next)
+    {
+        if (current >= Count)
+        {
+            next = Count + 1;
+            return false;
+        }
+
+        next = current + 1;
+        return true;
+    }
 }

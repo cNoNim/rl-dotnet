@@ -2,13 +2,18 @@
 
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
+        <ImplicitUsings>disable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <IsAotCompatible>true</IsAotCompatible>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\RL.Environments\RL.Environments.csproj"/>
         <ProjectReference Include="..\RL.MDArrays\RL.MDArrays.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="TorchSharp" Version="0.101.5"/>
     </ItemGroup>
 
 </Project>

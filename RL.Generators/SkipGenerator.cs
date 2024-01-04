@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using RL.Core;
 
 namespace RL.Generators;
@@ -11,6 +12,8 @@ public readonly struct SkipGenerator<TG, T>(TG generator, int count) :
 
     public GeneratorEnumerator<SkipGenerator<TG, T>, T> GetEnumerator() => new(this);
 
-    bool IGenerator<T>.IsFinite => generator.IsFinite;
-    bool IGenerator<T>.TryGetNext(int current, out int next) => generator.TryGetNext(current, out next);
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool IsFinite => generator.IsFinite;
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool TryGetNext(int current, out int next) => generator.TryGetNext(current, out next);
 }

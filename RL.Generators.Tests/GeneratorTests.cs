@@ -1,3 +1,4 @@
+using RL.Core.Tests;
 using Xunit.Abstractions;
 using static RL.Generators.Generator;
 
@@ -22,7 +23,7 @@ public class GeneratorTests(ITestOutputHelper output) : TestsBase(output)
         var take = Sequence<int>().Take(5);
         Assert.Equal(5, take.Count);
         Assert.Equal(5, take.Count());
-        Assert.Equal([0, 1, 2, 3, 4], take.ToArray());
+        Assert.Equal([0, 1, 2, 3, 4], take.AsEnumerable().ToArray());
         var count = 0;
         foreach (var _ in take)
             count++;

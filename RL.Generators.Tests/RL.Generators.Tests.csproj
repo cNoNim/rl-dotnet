@@ -24,8 +24,8 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\RL.Core.Tests\RL.Core.Tests.csproj"/>
         <ProjectReference Include="..\RL.Generators\RL.Generators.csproj"/>
-      <ProjectReference Include="..\RL.Environments\RL.Environments.csproj" />
     </ItemGroup>
 
 </Project>

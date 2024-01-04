@@ -24,9 +24,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\RL.Core.Tests\RL.Core.Tests.csproj"/>
         <ProjectReference Include="..\RL.Generators\RL.Generators.csproj"/>
-      <ProjectReference Include="..\RL.Random\RL.Random.csproj" />
-        <ProjectReference Include="..\RL.Generators.Tests\RL.Generators.Tests.csproj"/>
+        <ProjectReference Include="..\RL.Random\RL.Random.csproj"/>
+        <ProjectReference Include="..\RL.MDArrays\RL.MDArrays.csproj"/>
     </ItemGroup>
 
 </Project>

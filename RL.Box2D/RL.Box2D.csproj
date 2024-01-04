@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>disable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\RL.Environments\RL.Environments.csproj"/>
+        <ProjectReference Include="..\RL.MDArrays\RL.MDArrays.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Box2D.NetStandard" Version="2.4.7-alpha"/>
+    </ItemGroup>
+
+</Project>
