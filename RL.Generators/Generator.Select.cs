@@ -1,6 +1,6 @@
+using System;
 using System.Runtime.CompilerServices;
 using RL.Core;
-using RL.MDArrays;
 
 namespace RL.Generators;
 
@@ -27,6 +27,35 @@ public static partial class Generator
     ) => Select<ReadOnlyAdapter<T>, T, TTo>(generator, selector);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SelectGenerator<ChunkGenerator<TG, T>, TakeGenerator<SkipGenerator<TG, T>, T>, TTo>
+        Select<TG, T, TTo>(
+            this ChunkGenerator<TG, T> generator,
+            Func<TakeGenerator<SkipGenerator<TG, T>, T>, TTo> selector
+        ) where TG : IGenerator<T> =>
+        Select<ChunkGenerator<TG, T>, TakeGenerator<SkipGenerator<TG, T>, T>, TTo>(generator, selector);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SelectGenerator<SelectGenerator<TG, T, TTo>, TTo, TR> Select<TG, T, TTo, TR>(
+        this SelectGenerator<TG, T, TTo> generator,
+        Func<TTo, TR> selector
+    ) where TG : IGenerator<T> =>
+        Select<SelectGenerator<TG, T, TTo>, TTo, TR>(generator, selector);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SelectGenerator<SelectGenerator<TG, T, TTo, TContext>, TTo, TR> Select<TG, T, TTo, TR, TContext>(
+        this SelectGenerator<TG, T, TTo, TContext> generator,
+        Func<TTo, TR> selector
+    ) where TG : IGenerator<T> =>
+        Select<SelectGenerator<TG, T, TTo, TContext>, TTo, TR>(generator, selector);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SelectGenerator<ArrayCacheGenerator<TG, T>, T, TTo> Select<TG, T, TTo>(
+        this ArrayCacheGenerator<TG, T> generator,
+        Func<T, TTo> selector
+    ) where TG : IGenerator<T> =>
+        Select<ArrayCacheGenerator<TG, T>, T, TTo>(generator, selector);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SelectGenerator<IGenerator<T>, T, TTo> Select<T, TTo>(
         this IGenerator<T> generator,
         Func<T, TTo> selector
@@ -46,13 +75,6 @@ public static partial class Generator
         Func<TContext, T, TTo> selector
     ) where TG : IGenerator<T> =>
         Select<TakeGenerator<TG, T>, T, TTo, TContext>(generator, context, selector);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SelectGenerator<Array1D<T>, T, TTo, TContext> Select<T, TTo, TContext>(
-        this Array1D<T> generator,
-        TContext context,
-        Func<TContext, T, TTo> selector
-    ) => Select<Array1D<T>, T, TTo, TContext>(generator, context, selector);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SelectGenerator<IGenerator<T>, T, TTo, TContext> Select<T, TTo, TContext>(

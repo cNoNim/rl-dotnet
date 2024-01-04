@@ -3,16 +3,23 @@ using RL.Random;
 
 namespace RL.Environments;
 
-public interface IEnvironment<TObservation, TAction>
+public interface IEnvironment<TO, TA>
 {
-    IRandomGenerator Random { get; }
-    Space<TAction> ActionSpace { get; }
-    Space<TObservation> ObservationSpace { get; }
+    public string Name { get; }
+    public IRandomGenerator Random { get; }
+    public int Steps { get; }
+    public TO State { get; }
 
-    static abstract string Name { get; }
+    public Transition<TO, TA, float> Step(TA action);
+    public TO Reset(uint? seed = null, object? options = null);
 
-    (TObservation observation, double reward, bool terminated)
-        Step(TAction action);
+    public TA Heuristic(TO state);
+}
 
-    TObservation Reset(uint? seed = null);
+public interface IEnvironment<out TOSpace, out TASpace, TO, TA> : IEnvironment<TO, TA>
+    where TOSpace : ISpace<TO>
+    where TASpace : ISpace<TA>
+{
+    TOSpace ObservationSpace { get; }
+    TASpace ActionSpace { get; }
 }

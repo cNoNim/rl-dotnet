@@ -1,4 +1,5 @@
 using RL.Environments;
+using RL.Environments.Spaces;
 using RL.MDArrays;
 using RL.Random;
 using static RL.Generators.Generator;
@@ -10,12 +11,21 @@ public readonly struct Sarsa(
     int stepCount,
     double gamma = 0.99,
     double alpha = 0.5
-) : IAlgorithm<int, int>
+) : IDiscreteAlgorithm
 {
-    public Array1D<double> Train(IEnvironment<int, int> environment)
+    public string Name => nameof(Sarsa);
+
+
+    public Array2D<double> CreateQ(IEnvironment<Discrete, Discrete, int, int> environment) =>
+        (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
+
+    public (Array1D<double> rewards, Array2D<double> qTable) Train(
+        IEnvironment<Discrete, Discrete, int, int> environment,
+        Array2D<double>? qTable = null
+    )
     {
         var totalRewards = episodeCount.Zeroes<double>();
-        var q = (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
+        var q = qTable ?? CreateQ(environment);
 
         foreach (var episode in Range<int>(episodeCount))
         {
@@ -27,23 +37,21 @@ public readonly struct Sarsa(
 
             foreach (var _ in Range<int>(stepCount))
             {
-                var (nextState, reward, done) = environment.Step(action);
-                var nextAction = q[nextState].EpsilonGreedy(epsilon).ChoiceIndex(environment.Random);
+                var t = environment.Step(action);
+                var nextAction = q[t.NextState].EpsilonGreedy(epsilon).ChoiceIndex(environment.Random);
 
-                q[state][action] += alpha * (reward + gamma * q[nextState][nextAction] - q[state][action]);
+                q[t.State][t.Action] += alpha * (t.Reward + gamma * q[t.NextState][nextAction] - q[t.State][t.Action]);
 
-                (state, action) = (nextState, nextAction);
+                action = nextAction;
 
-                totalReward += reward;
-                if (done)
+                totalReward += t.Reward;
+                if (t.Terminated || t.Truncated)
                     break;
             }
 
             totalRewards[episode] = totalReward;
         }
 
-        return totalRewards;
+        return (totalRewards, q);
     }
-
-    static string IAlgorithm<int, int>.Name => nameof(Sarsa);
 }

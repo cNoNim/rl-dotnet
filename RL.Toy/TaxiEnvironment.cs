@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using RL.Environments;
 using RL.Environments.Spaces;
 using RL.MDArrays;
@@ -7,7 +9,7 @@ using static RL.Generators.Generator;
 
 namespace RL.Toy;
 
-public class TaxiEnvironment : EnvironmentBase<int, int>, IEnvironment<int, int>
+public class TaxiEnvironment : EnvironmentBase<Discrete, Discrete, int, int>
 {
     private const int StateCount = 500;
     private const int ActionCount = 6;
@@ -25,13 +27,13 @@ public class TaxiEnvironment : EnvironmentBase<int, int>, IEnvironment<int, int>
 
     private static readonly (int, int)[] Locations = [(0, 0), (0, 4), (4, 0), (4, 3)];
 
+
+    private readonly List<(double probability, int state, int reward, bool terminated)>[,]
+        _p = new List<(double probability, int state, int reward, bool terminated)>[StateCount, ActionCount];
+
     internal readonly Array1D<double> InitialDistribution;
 
-
-    internal readonly List<(double probability, int state, int reward, bool terminated)>[,]
-        P = new List<(double probability, int state, int reward, bool terminated)>[StateCount, ActionCount];
-
-    public TaxiEnvironment()
+    public TaxiEnvironment() : base("Taxi")
     {
         const int rows = 5;
         const int maxRow = rows - 1;
@@ -101,10 +103,10 @@ public class TaxiEnvironment : EnvironmentBase<int, int>, IEnvironment<int, int>
                 }
 
                 var newState = Encode(newRow, newColumn, newPassIdx, destIdx);
-                if (P[state, action] is not { } transitions)
+                if (_p[state, action] is not { } transitions)
                 {
                     transitions = [];
-                    P[state, action] = transitions;
+                    _p[state, action] = transitions;
                 }
 
                 transitions.Add((1.0, newState, reward, terminated));
@@ -128,20 +130,17 @@ public class TaxiEnvironment : EnvironmentBase<int, int>, IEnvironment<int, int>
         }
     }
 
-    internal int State { get; private set; }
-    public override Space<int> ActionSpace { get; } = new Discrete(ActionCount);
-    public override Space<int> ObservationSpace { get; } = new Discrete(StateCount);
+    public override Discrete ActionSpace { get; } = new(ActionCount);
+    public override Discrete ObservationSpace { get; } = new(StateCount);
 
-    public override (int observation, double reward, bool terminated) Step(int action)
+    protected override (int nextState, float reward, bool terminated) DoStep(int state, int action)
     {
-        var transitions = P[State, action].AsGenerator();
+        var transitions = _p[state, action].AsGenerator();
         var index = transitions.Select(tuple => tuple.probability).ChoiceIndex(Random);
-        (_, State, var reward, var terminated) = transitions[index];
-        return (State, reward, terminated);
+        var (_, nextState, reward, terminated) = transitions[index];
+        return (nextState, reward, terminated);
     }
 
-    static string IEnvironment<int, int>.Name => "Taxi";
-
     protected override int DoReset() =>
-        State = InitialDistribution.ChoiceIndex(Random);
+        InitialDistribution.ChoiceIndex<Array1D<double>, double>(Random);
 }

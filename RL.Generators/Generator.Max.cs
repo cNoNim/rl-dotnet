@@ -1,15 +1,19 @@
+using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using RL.Core;
-using RL.MDArrays;
 
 namespace RL.Generators;
 
 public static partial class Generator
 {
-    public static T Max<T>(this Array2D<T>.Row generator)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static T Max<TG, T>(this TakeGenerator<TG, T> generator)
+        where TG : IGenerator<T>
         where T : IComparisonOperators<T, T, bool>, IMinMaxValue<T> =>
-        Max<Array2D<T>.Row, T>(generator);
+        Max<TakeGenerator<TG, T>, T>(generator);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static T Max<T>(this IGenerator<T> generator)
         where T : IComparisonOperators<T, T, bool>, IMinMaxValue<T> =>
         Max<IGenerator<T>, T>(generator);

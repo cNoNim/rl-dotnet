@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RL.Environments;
 using RL.Environments.Spaces;
 using RL.MDArrays;
@@ -7,61 +8,56 @@ using static RL.Generators.Generator;
 
 namespace RL.Toy;
 
-public class CliffWalkingEnvironment : EnvironmentBase<int, int>, IEnvironment<int, int>
+public class CliffWalkingEnvironment : EnvironmentBase<Discrete, Discrete, int, int>
 {
     private const int Up = 0;
     private const int Right = 1;
     private const int Down = 2;
     private const int Left = 3;
-    internal readonly Array2D<bool> Cliff;
-    internal readonly List<(double probability, int state, int reward, bool terminated)>[,] P;
+    private readonly Array2D<int> _cliff;
+    private readonly List<(double probability, int state, int reward, bool terminated)>[,] _p;
 
-    internal readonly (int x, int y) Shape = (4, 12);
-    internal readonly int StartState;
-    internal readonly int TerminateState;
+    private readonly (int x, int y) _shape = (4, 12);
+    private readonly int _startState;
+    private readonly int _terminateState;
 
-    public CliffWalkingEnvironment()
+    public CliffWalkingEnvironment() : base("Cliff-Walking")
     {
-        StartState = (3, 0).Flatten(Shape);
-        TerminateState = (^1, ^1).Flatten(Shape);
-        var observationSpace = new Discrete(Shape.Flatten());
+        _startState = (3, 0).Flatten(_shape);
+        _terminateState = (^1, ^1).Flatten(_shape);
+        var observationSpace = new Discrete(_shape.Flatten());
         var actionSpace = new Discrete(4);
         ObservationSpace = observationSpace;
         ActionSpace = actionSpace;
-        var cliff = Shape.Zeroes<bool>();
-        cliff[3][1..^1].Fill(true);
-        Cliff = cliff;
+        var cliff = _shape.Zeroes<int>();
+        cliff[3][1..^1].Fill(1);
+        _cliff = cliff;
 
-        P = new List<(double probability, int state, int reward, bool terminated)>[observationSpace.Size,
+        _p = new List<(double probability, int state, int reward, bool terminated)>[observationSpace.Size,
             actionSpace.Size];
 
         foreach (var s in Range<int>(observationSpace.Size))
         {
-            var position = s.Multi(Shape);
-            P[s, Up] = CalculateTransitionProbability(position, (-1, 0));
-            P[s, Right] = CalculateTransitionProbability(position, (0, 1));
-            P[s, Down] = CalculateTransitionProbability(position, (1, 0));
-            P[s, Left] = CalculateTransitionProbability(position, (0, -1));
+            var position = s.Multi(_shape);
+            _p[s, Up] = CalculateTransitionProbability(position, (-1, 0));
+            _p[s, Right] = CalculateTransitionProbability(position, (0, 1));
+            _p[s, Down] = CalculateTransitionProbability(position, (1, 0));
+            _p[s, Left] = CalculateTransitionProbability(position, (0, -1));
         }
     }
 
-    internal int State { get; private set; }
+    public override Discrete ActionSpace { get; }
+    public override Discrete ObservationSpace { get; }
 
-    public override Space<int> ActionSpace { get; }
-
-    public override Space<int> ObservationSpace { get; }
-
-    public override (int observation, double reward, bool terminated) Step(int action)
+    protected override (int nextState, float reward, bool terminated) DoStep(int state, int action)
     {
-        var transitions = P[State, action].AsGenerator();
+        var transitions = _p[state, action].AsGenerator();
         var index = transitions.Select(tuple => tuple.probability).ChoiceIndex(Random);
-        (_, State, var reward, var terminated) = transitions[index];
-        return (State, reward, terminated);
+        var (_, nextState, reward, terminated) = transitions[index];
+        return (nextState, reward, terminated);
     }
 
-    public static string Name => "Cliff-Walking";
-
-    protected override int DoReset() => State = StartState;
+    protected override int DoReset() => _startState;
 
     private List<(double probability, int state, int reward, bool terminated)> CalculateTransitionProbability(
         (int x, int y) position,
@@ -71,12 +67,12 @@ public class CliffWalkingEnvironment : EnvironmentBase<int, int>, IEnvironment<i
         var (x, y) = position;
         var (xDelta, yDelta) = delta;
         var newPosition = LimitPosition((x + xDelta, y + yDelta));
-        var newState = newPosition.Flatten(Shape);
-        return Cliff[newPosition]
-            ? [(1.0, StartState, -100, false)]
-            : [(1.0, newState, -1, newState == TerminateState)];
+        var newState = newPosition.Flatten(_shape);
+        return _cliff[newPosition] != 0
+            ? [(1.0, _startState, -100, false)]
+            : [(1.0, newState, -1, newState == _terminateState)];
     }
 
     private (int x, int y) LimitPosition((int x, int y) position) =>
-        (Clamp(position.x, 0, Shape.x - 1), Clamp(position.y, 0, Shape.y - 1));
+        (Clamp(position.x, 0, _shape.x - 1), Clamp(position.y, 0, _shape.y - 1));
 }
