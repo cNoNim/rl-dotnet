@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -8,7 +9,7 @@ namespace RL.Tensors;
 
 [CollectionBuilder(typeof(Tensor), "Create")]
 public readonly partial struct Tensor1D<T> :
-    IFiniteGenerator<Tensor1D<T>, T>,
+    IGenerator<Tensor1D<T>, T>,
     IComparisonOperators<Tensor1D<T>, Tensor1D<T>, bool>
     where T :
     IAdditionOperators<T, T, T>,
@@ -44,8 +45,27 @@ public readonly partial struct Tensor1D<T> :
 
     public GeneratorEnumerator<Tensor1D<T>, T> GetEnumerator() => new(this);
     public static implicit operator T[](Tensor1D<T> adapter) => adapter._array;
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public int Count => Shape;
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool IsFinite => true;
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool TryGetNext(int current, out int next)
+    {
+        if (current >= Shape)
+        {
+            next = Shape + 1;
+            return false;
+        }
+
+        next = current + 1;
+        return true;
+    }
+
     T IGenerator<T>.this[int index] => this[index];
-    int IGenerator<T>.Count => Shape;
 
     private static Tensor1D<T> CombineToTensor(Tensor1D<T> left, Tensor1D<T> right, Func<T, T, T> combiner)
     {

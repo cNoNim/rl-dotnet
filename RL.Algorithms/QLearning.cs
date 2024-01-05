@@ -1,3 +1,4 @@
+using RL.Core;
 using RL.Environments;
 using RL.Environments.Spaces;
 using RL.Random;
@@ -7,23 +8,27 @@ using static RL.Generators.Generator;
 namespace RL.Algorithms;
 
 public readonly struct QLearning(
-    int episodeCount,
+    IGenerator<int> episodeGenerator,
     int stepCount,
     double gamma = 0.99,
     double alpha = 0.5
-) : IAlgorithm<Discrete, Discrete, int, int>
+) : IDiscreteAlgorithm
 {
     public string Name => nameof(QLearning);
+
+
+    public Tensor2D<double> CreateQ(IEnvironment<Discrete, Discrete, int, int> environment) => 
+        (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
 
     public (Tensor1D<double> rewards, Tensor2D<double> qTable) Train(
         IEnvironment<Discrete, Discrete, int, int> environment,
         Tensor2D<double>? qTable = null
     )
     {
-        var totalRewards = episodeCount.Zeroes<double>();
-        var q = qTable ?? (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
+        var totalRewards = episodeGenerator.Count.Zeroes<double>();
+        var q = qTable ?? CreateQ(environment);
 
-        foreach (var episode in Range<int>(episodeCount))
+        foreach (var episode in episodeGenerator.AsGeneratorEnumerable())
         {
             var totalReward = 0.0;
             var state = environment.Reset();

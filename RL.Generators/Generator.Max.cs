@@ -1,10 +1,13 @@
+using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using RL.Core;
 
 namespace RL.Generators;
 
 public static partial class Generator
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static T Max<T>(this IGenerator<T> generator)
         where T : IComparisonOperators<T, T, bool>, IMinMaxValue<T> =>
         Max<IGenerator<T>, T>(generator);

@@ -1,8 +1,5 @@
-using System.Runtime.CompilerServices;
-
 namespace RL.Core;
 
-[method: MethodImpl(MethodImplOptions.AggressiveInlining)]
 public struct GeneratorEnumerator<TG, T>(TG generator) : IGeneratorEnumerator<T>
     where TG : IGenerator<T>
 {

@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using RL.Core;
 using RL.Generators;
 
 namespace RL.Tensors;
@@ -87,4 +88,46 @@ public static partial class Tensor
         IUnaryNegationOperators<T, T>,
         IEquatable<T> =>
         generator.Select<Tensor1D<T>, T, TTo, TContext>(context, selector);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ZipGenerator<Tensor1D<T1>, Tensor1D<T2>, T1, T2>
+        Zip<T1, T2>(this Tensor1D<T1> generator, Tensor1D<T2> other)
+        where T1 :
+        IAdditionOperators<T1, T1, T1>,
+        IDivisionOperators<T1, T1, T1>,
+        IComparisonOperators<T1, T1, bool>,
+        IModulusOperators<T1, T1, T1>,
+        IMultiplyOperators<T1, T1, T1>,
+        ISubtractionOperators<T1, T1, T1>,
+        IUnaryPlusOperators<T1, T1>,
+        IUnaryNegationOperators<T1, T1>,
+        IEquatable<T1>
+        where T2 :
+        IAdditionOperators<T2, T2, T2>,
+        IDivisionOperators<T2, T2, T2>,
+        IComparisonOperators<T2, T2, bool>,
+        IModulusOperators<T2, T2, T2>,
+        IMultiplyOperators<T2, T2, T2>,
+        ISubtractionOperators<T2, T2, T2>,
+        IUnaryPlusOperators<T2, T2>,
+        IUnaryNegationOperators<T2, T2>,
+        IEquatable<T2> =>
+        generator.Zip<Tensor1D<T1>, Tensor1D<T2>, T1, T2>(other);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ZipGenerator<Tensor1D<T1>, ZipGenerator<TG2, TG3, T2, T3>, T1, (T2, T3)>
+        Zip<TG2, TG3, T1, T2, T3>(this Tensor1D<T1> generator, ZipGenerator<TG2, TG3, T2, T3> other)
+        where T1 :
+        IAdditionOperators<T1, T1, T1>,
+        IDivisionOperators<T1, T1, T1>,
+        IComparisonOperators<T1, T1, bool>,
+        IModulusOperators<T1, T1, T1>,
+        IMultiplyOperators<T1, T1, T1>,
+        ISubtractionOperators<T1, T1, T1>,
+        IUnaryPlusOperators<T1, T1>,
+        IUnaryNegationOperators<T1, T1>,
+        IEquatable<T1>
+        where TG2 : IGenerator<T2>
+        where TG3 : IGenerator<T3> =>
+        generator.Zip<Tensor1D<T1>, ZipGenerator<TG2, TG3, T2, T3>, T1, (T2, T3)>(other);
 }

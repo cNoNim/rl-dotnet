@@ -1,15 +1,17 @@
-﻿using RL.Environments;
+﻿using System;
+using RL.Environments;
 using RL.Environments.Spaces;
 using RL.Tensors;
+using static System.MathF;
 
 namespace RL.Classic;
 
 public class CartPoleEnvironment : EnvironmentBase<
-    Box<Tensor1D<double>>,
+    Box<Tensor1D<float>>,
     Discrete,
-    Tensor1D<double>,
+    Tensor1D<float>,
     int,
-    (double low, double high, CartPoleEnvironment.Integrator integrator)>
+    (float low, float high, CartPoleEnvironment.Integrator integrator)>
 {
     public enum Integrator
     {
@@ -20,47 +22,47 @@ public class CartPoleEnvironment : EnvironmentBase<
     private const int Left = 0;
     private const int Right = 1;
 
-    private const double Gravity = 9.8;
-    private const double MassCart = 1.0;
-    private const double MassPole = 0.1;
-    private const double TotalMass = MassCart + MassPole;
-    private const double Length = 0.5;
-    private const double PoleMassLength = MassPole * Length;
-    private const double ForceMag = 10.0;
-    private const double Tau = 0.02;
+    private const float Gravity = 9.8f;
+    private const float MassCart = 1.0f;
+    private const float MassPole = 0.1f;
+    private const float TotalMass = MassCart + MassPole;
+    private const float Length = 0.5f;
+    private const float PoleMassLength = MassPole * Length;
+    private const float ForceMag = 10.0f;
+    private const float Tau = 0.02f;
 
-    private const double XThreshold = 2.4;
-    private const double ThetaThreshold = 12 * 2 * Math.PI / 360;
+    private const float XThreshold = 2.4f;
+    private const float ThetaThreshold = 12 * 2 * PI / 360;
 
     private int? _stepsBeyondTerminated;
 
     public CartPoleEnvironment()
     {
-        Tensor1D<double> high = [XThreshold * 2, double.MaxValue, ThetaThreshold * 2, double.MaxValue];
-        ObservationSpace = new Box<Tensor1D<double>>(-high, high);
+        Tensor1D<float> high = [XThreshold * 2, float.MaxValue, ThetaThreshold * 2, float.MaxValue];
+        ObservationSpace = new Box<Tensor1D<float>>(-high, high);
     }
 
-    public override Box<Tensor1D<double>> ObservationSpace { get; }
+    public override Box<Tensor1D<float>> ObservationSpace { get; }
 
     public override Discrete ActionSpace { get; } = new(2);
 
-    protected override (double low, double high, Integrator integrator) DefaultOptions =>
-        (-0.05, 0.05, Integrator.Euler);
+    protected override (float low, float high, Integrator integrator) DefaultOptions =>
+        (-0.05f, 0.05f, Integrator.Euler);
 
-    protected override (Tensor1D<double> observation, double reward, bool terminated) DoStep(int action)
+    protected override (Tensor1D<float> observation, double reward, bool terminated) DoStep(int action)
     {
         var (x, xV, theta, thetaV) = State;
 
         var force = action == Right ? ForceMag : -ForceMag;
-        var cosTheta = Math.Cos(theta);
-        var sinTheta = Math.Sin(theta);
+        var cosTheta = Cos(theta);
+        var sinTheta = Sin(theta);
 
         var temp =
-            (force + PoleMassLength * Math.Pow(thetaV, 2) * sinTheta) /
+            (force + PoleMassLength * Pow(thetaV, 2) * sinTheta) /
             TotalMass;
         var thetaAcc =
             (Gravity * sinTheta - cosTheta * temp) /
-            (Length * (4.0 / 3.0 - MassPole * Math.Pow(cosTheta, 2) / TotalMass));
+            (Length * (4.0f / 3.0f - MassPole * Pow(cosTheta, 2) / TotalMass));
         var xAcc = temp - PoleMassLength * thetaAcc * cosTheta / TotalMass;
 
         switch (Options.integrator)
@@ -81,26 +83,29 @@ public class CartPoleEnvironment : EnvironmentBase<
                 throw new NotSupportedException();
         }
 
-        Tensor1D<double> state = [x, xV, theta, thetaV];
+        State[0] = x;
+        State[1] = xV;
+        State[2] = theta;
+        State[3] = thetaV;
 
         var terminated =
             x is < -XThreshold or > XThreshold ||
             theta is < -ThetaThreshold or > ThetaThreshold;
 
         if (!terminated)
-            return (state, 1.0, terminated);
+            return (State, 1.0, terminated);
 
         if (!_stepsBeyondTerminated.HasValue)
         {
             _stepsBeyondTerminated = 0;
-            return (state, 1.0, terminated);
+            return (State, 1.0, terminated);
         }
 
         _stepsBeyondTerminated++;
-        return (state, reward: 0.0, terminated);
+        return (State, reward: 0.0, terminated);
     }
 
-    protected override Tensor1D<double> DoReset((double low, double high, Integrator integrator) options) =>
+    protected override Tensor1D<float> DoReset((float low, float high, Integrator integrator) options) =>
     [
         Random.Random(options.low, options.high),
         Random.Random(options.low, options.high),

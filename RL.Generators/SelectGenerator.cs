@@ -1,3 +1,5 @@
+using System;
+using System.ComponentModel;
 using RL.Core;
 
 namespace RL.Generators;
@@ -14,8 +16,10 @@ public readonly struct SelectGenerator<TG, T, TTo>(
     public GeneratorEnumerator<SelectGenerator<TG, T, TTo>, TTo> GetEnumerator() =>
         new(this);
 
-    bool IGenerator<TTo>.IsFinite => generator.IsFinite;
-    bool IGenerator<TTo>.TryGetNext(int current, out int next) => generator.TryGetNext(current, out next);
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool IsFinite => generator.IsFinite;
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool TryGetNext(int current, out int next) => generator.TryGetNext(current, out next);
 }
 
 public readonly struct SelectGenerator<TG, T, TTo, TContext>(
@@ -31,6 +35,8 @@ public readonly struct SelectGenerator<TG, T, TTo, TContext>(
     public GeneratorEnumerator<SelectGenerator<TG, T, TTo, TContext>, TTo> GetEnumerator() =>
         new(this);
 
-    bool IGenerator<TTo>.IsFinite => generator.IsFinite;
-    bool IGenerator<TTo>.TryGetNext(int current, out int next) => generator.TryGetNext(current, out next);
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool IsFinite => generator.IsFinite;
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool TryGetNext(int current, out int next) => generator.TryGetNext(current, out next);
 }

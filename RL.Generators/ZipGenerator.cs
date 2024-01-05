@@ -1,3 +1,5 @@
+using System;
+using System.ComponentModel;
 using RL.Core;
 using static System.Math;
 
@@ -11,7 +13,7 @@ public readonly struct ZipGenerator<TG1, TG2, T1, T2>(TG1 generator1, TG2 genera
     private readonly bool _isFinite = generator1.IsFinite || generator2.IsFinite;
 
     public (T1, T2) this[int index] => (generator1[index], generator2[index]);
-
+    
     public int Count { get; } = (generator1.IsFinite, generator2.IsFinite) switch
     {
         (true, true) => Min(generator1.Count, generator2.Count),
@@ -22,12 +24,13 @@ public readonly struct ZipGenerator<TG1, TG2, T1, T2>(TG1 generator1, TG2 genera
 
     public GeneratorEnumerator<ZipGenerator<TG1, TG2, T1, T2>, (T1, T2)> GetEnumerator() => new(this);
 
-    bool IGenerator<(T1, T2)>.IsFinite => _isFinite;
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool IsFinite => _isFinite;
 
-    bool IGenerator<(T1, T2)>.TryGetNext(int current, out int next)
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool TryGetNext(int current, out int next)
     {
-        var isFinite = _isFinite;
-        if (isFinite && current >= Count)
+        if (_isFinite && current >= Count)
         {
             next = Count + 1;
             return false;

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -7,13 +8,14 @@ using RL.Core;
 namespace RL.Tensors;
 
 public readonly struct Tensor2D<T>((int x, int y) shape) :
-    IFiniteGenerator<Tensor2D<T>, Tensor2D<T>.Row>,
+    IGenerator<Tensor2D<T>, Tensor2D<T>.Row>,
     IAdditionOperators<Tensor2D<T>, Tensor2D<T>, Tensor2D<T>>
     where T : INumberBase<T>
 {
     private readonly T[] _array = new T[shape.Flatten()];
+
     public Row this[int row] => new(this, row);
-    public int Count => Shape.x;
+
     public ref T this[(int x, int y) index] => ref _array[index.Flatten(shape)];
 
     public ref T this[int x, int y]
@@ -21,6 +23,9 @@ public readonly struct Tensor2D<T>((int x, int y) shape) :
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => ref this[(x, y)];
     }
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public int Count => Shape.x;
 
     public (int x, int y) Shape => shape;
 
@@ -33,12 +38,27 @@ public readonly struct Tensor2D<T>((int x, int y) shape) :
 
     public static explicit operator T[](Tensor2D<T> adapter) => adapter._array;
 
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool IsFinite => true;
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool TryGetNext(int current, out int next)
+    {
+        if (current >= Count)
+        {
+            next = Count + 1;
+            return false;
+        }
+
+        next = current + 1;
+        return true;
+    }
+
     public readonly struct Row(Tensor2D<T> tensor, int row) :
-        IFiniteGenerator<Row, T>
+        IGenerator<Row, T>
     {
         public ref T this[int index] => ref tensor[row, index];
         public int Shape => tensor.Shape.y;
-        public int Count => Shape;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public GeneratorEnumerator<Row, T> GetEnumerator() =>
@@ -49,6 +69,25 @@ public readonly struct Tensor2D<T>((int x, int y) shape) :
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> Slice(int start, int length) => tensor.RowSpan(row).Slice(start, length);
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public int Count => Shape;
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public bool IsFinite => true;
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public bool TryGetNext(int current, out int next)
+        {
+            if (current >= Count)
+            {
+                next = Count + 1;
+                return false;
+            }
+
+            next = current + 1;
+            return true;
+        }
 
         T IGenerator<T>.this[int index] => this[index];
     }

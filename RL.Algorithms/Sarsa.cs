@@ -11,9 +11,13 @@ public readonly struct Sarsa(
     int stepCount,
     double gamma = 0.99,
     double alpha = 0.5
-) : IAlgorithm<Discrete, Discrete, int, int>
+) : IDiscreteAlgorithm
 {
     public string Name => nameof(Sarsa);
+
+    
+    public Tensor2D<double> CreateQ(IEnvironment<Discrete, Discrete, int, int> environment) => 
+        (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
 
     public (Tensor1D<double> rewards, Tensor2D<double> qTable) Train(
         IEnvironment<Discrete, Discrete, int, int> environment,
@@ -21,7 +25,7 @@ public readonly struct Sarsa(
     )
     {
         var totalRewards = episodeCount.Zeroes<double>();
-        var q = (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
+        var q = qTable ?? CreateQ(environment);
 
         foreach (var episode in Range<int>(episodeCount))
         {

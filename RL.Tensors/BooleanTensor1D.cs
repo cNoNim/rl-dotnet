@@ -1,10 +1,11 @@
 using System;
+using System.ComponentModel;
 using RL.Core;
 
 namespace RL.Tensors;
 
 public readonly struct BooleanTensor1D :
-    IFiniteGenerator<BooleanTensor1D, bool>
+    IGenerator<BooleanTensor1D, bool>
 {
     private readonly bool[] _array;
 
@@ -24,12 +25,30 @@ public readonly struct BooleanTensor1D :
     {
     }
 
+
     public ref bool this[int index] => ref _array[index];
     public int Shape { get; }
-
     public GeneratorEnumerator<BooleanTensor1D, bool> GetEnumerator() => new(this);
     public static implicit operator bool[](BooleanTensor1D adapter) => adapter._array;
-    bool IGenerator<bool>.this[int index] => this[index];
 
-    int IGenerator<bool>.Count => Shape;
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool IsFinite => true;
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public int Count => Shape;
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public bool TryGetNext(int current, out int next)
+    {
+        if (current >= Shape)
+        {
+            next = Shape + 1;
+            return false;
+        }
+
+        next = current + 1;
+        return true;
+    }
+
+    bool IGenerator<bool>.this[int index] => this[index];
 }

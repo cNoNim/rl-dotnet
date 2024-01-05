@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using RL.Environments;
 using RL.Environments.Spaces;
 using RL.Random;
@@ -10,17 +13,20 @@ public readonly struct MonteCarlo(
     int episodeCount,
     int stepCount,
     double gamma = 0.99
-) : IAlgorithm<Discrete, Discrete, int, int>
+) : IDiscreteAlgorithm
 {
     public string Name => nameof(MonteCarlo);
 
+    public Tensor2D<double> CreateQ(IEnvironment<Discrete, Discrete, int, int> environment) => 
+        (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
+    
     public (Tensor1D<double> rewards, Tensor2D<double> qTable) Train(
         IEnvironment<Discrete, Discrete, int, int> environment,
         Tensor2D<double>? qTable = default
     )
     {
         var totalRewards = episodeCount.Zeroes<double>();
-        var q = qTable ?? (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<double>();
+        var q = qTable ?? CreateQ(environment);
         var counter = (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<int>();
 
         var steps = new List<(int state, int action, double reward)>(stepCount);
