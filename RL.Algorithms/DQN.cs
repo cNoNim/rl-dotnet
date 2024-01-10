@@ -27,7 +27,7 @@ public class DQN(double lr = 1e-4)
     private readonly List<Tensor> _rewardList = new(BatchSize);
     private readonly List<Tensor> _stateList = new(BatchSize);
 
-    public (Array1D<double>, long) Train<TG>(
+    public (Array1D<double> rewards, int steps, int terminatedSteps) Train<TG>(
         TG episodeGenerator,
         Module<Tensor, Tensor> model,
         Module<Tensor, Tensor> policyModel,
@@ -41,7 +41,8 @@ public class DQN(double lr = 1e-4)
         var count = episodeGenerator.Count();
         var totalRewards = count.Zeroes<double>();
         var steps = 0;
-        foreach (var episode in episodeGenerator.AsGeneratorEnumerable<TG, int>())
+        var terminatedSteps = 0;
+        foreach (var episode in episodeGenerator.AsGeneratorEnumerable())
         {
             var episodeReward = 0.0;
 
@@ -54,12 +55,15 @@ public class DQN(double lr = 1e-4)
                 var t = environment.Step(action);
                 episodeReward += t.Reward;
 
-                var terminated = t.Terminated || t.Truncated;
+                var done = t.Terminated || t.Truncated;
+
+                if (t.Terminated)
+                    terminatedSteps++;
 
                 memory.Push(
                     as_tensor(state).unsqueeze(0),
                     full(1, (long)action).unsqueeze(0),
-                    !terminated ? as_tensor(t.NextState).unsqueeze(0) : null,
+                    !t.Terminated ? as_tensor(t.NextState).unsqueeze(0) : null,
                     full(1, t.Reward)
                 );
                 state = t.NextState;
@@ -74,15 +78,14 @@ public class DQN(double lr = 1e-4)
                     targetModelStateDict[pair.Key] = pair.Value * Tau + targetModelStateDict[pair.Key] * (1 - Tau);
                 model.load_state_dict(targetModelStateDict);
 
-                if (terminated)
-                {
-                    totalRewards[episode] = episodeReward;
+                if (done)
                     break;
-                }
             }
+
+            totalRewards[episode] = episodeReward;
         }
 
-        return (totalRewards, steps);
+        return (totalRewards, steps, terminatedSteps);
     }
 
     private bool OptimizeModel(

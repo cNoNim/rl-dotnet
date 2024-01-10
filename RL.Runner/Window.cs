@@ -1,19 +1,20 @@
 using System;
 using System.Collections.Concurrent;
 using System.Drawing;
-using Box2D.NetStandard.Common;
+using System.Runtime.InteropServices;
 using Box2D.NetStandard.Dynamics.Bodies;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
+using RL.Draw;
 using RL.Environments;
 using Vector2 = System.Numerics.Vector2;
 
 namespace RL.Runner;
 
-public class Window(string title, int width, int height, Body? focusBody = null) :
+public class Window(string title, int width, int height, bool debugContext = false) :
     GameWindow(
         new GameWindowSettings
         {
@@ -23,136 +24,145 @@ public class Window(string title, int width, int height, Body? focusBody = null)
         {
             Title = title,
             ClientSize = new Vector2i(width, height),
-            Profile = ContextProfile.Compatability
+            Profile = ContextProfile.Core,
+            Flags = ContextFlags.ForwardCompatible | (debugContext ? ContextFlags.Debug : ContextFlags.Default)
         }
     ),
     IDebugDrawer
 {
+    private static readonly DebugProc DebugMessageDelegate = OnDebugMessage;
+
     private readonly ConcurrentQueue<Action> _drawActions = new();
+    private Drawer? _drawer;
+    private Body? _focusBody;
     public bool Paused;
 
     void IDebugDrawer.DrawPoint(Vector2 position, float size, Color color) =>
-        _drawActions.Enqueue(() =>
-        {
-            GL.Color4(color.R, color.G, color.B, (byte)128);
-            GL.Begin(PrimitiveType.Points);
-            GL.Vertex2(position.X, position.Y);
-            GL.End();
-        });
+        _drawActions.Enqueue(() => _drawer?.Add(position, color, size));
 
     void IDebugDrawer.DrawPolygon(Vector2[] vertices, int vertexCount, Color color) =>
-        _drawActions.Enqueue(() =>
-        {
-            GL.Color4(color.R, color.G, color.B, (byte)128);
-            GL.Begin(PrimitiveType.LineLoop);
-
-            for (var i = 0; i < vertexCount; i++)
-            {
-                var vertex = vertices[i];
-                GL.Vertex2(vertex.X, vertex.Y);
-            }
-
-            GL.End();
-        });
+        _drawActions.Enqueue(() => DrawPolygon(vertices, vertexCount, color));
 
     void IDebugDrawer.DrawSolidPolygon(Vector2[] vertices, int vertexCount, Color color) =>
         _drawActions.Enqueue(() =>
         {
-            GL.Color4(color.R, color.G, color.B, (byte)128);
-            GL.Begin(PrimitiveType.TriangleFan);
+            if (_drawer == null)
+                return;
 
-            for (var i = 0; i < vertexCount; i++)
-            {
-                var vertex = vertices[i];
-                GL.Vertex2(vertex.X, vertex.Y);
-            }
+            var fillColor = Color.FromArgb(color.A / 2, color.R / 2, color.G / 2, color.B / 2);
 
-            GL.End();
+            for (var i = 1; i < vertexCount - 1; ++i)
+                _drawer.Add(vertices[0], vertices[i], vertices[i + 1], fillColor);
+
+            DrawPolygon(vertices, vertexCount, color);
         });
 
     void IDebugDrawer.DrawCircle(Vector2 center, float radius, Color color) =>
         _drawActions.Enqueue(() =>
         {
+            if (_drawer == null)
+                return;
+
             const float kSegments = 16.0f;
-            const int vertexCount = 16;
-            const float kIncrement = Settings.Tau / kSegments;
-            var theta = 0.0f;
+            const float kIncrement = 2 * MathF.PI / kSegments;
+            var (sinInc, cosInc) = MathF.SinCos(kIncrement);
 
-            GL.Color4(color.R, color.G, color.B, (byte)128);
-            GL.Begin(PrimitiveType.LineLoop);
-            GL.VertexPointer(vertexCount * 2, VertexPointerType.Float, 0, IntPtr.Zero);
-
+            var r1 = new Vector2(1.0f, 0.0f);
+            var v1 = center + radius * r1;
             for (var i = 0; i < kSegments; ++i)
             {
-                var x = (float)Math.Cos(theta);
-                var y = (float)Math.Sin(theta);
-                var vertex = center + radius * new Vector2(x, y);
-
-                GL.Vertex2(vertex.X, vertex.Y);
-
-                theta += kIncrement;
+                var r2 = new Vector2(cosInc * r1.X - sinInc * r1.Y, sinInc * r1.X + cosInc * r1.Y);
+                var v2 = center + radius * r2;
+                _drawer.Add(v1, v2, color);
+                r1 = r2;
+                v1 = v2;
             }
-
-            GL.End();
         });
 
     void IDebugDrawer.DrawSolidCircle(Vector2 center, float radius, Vector2 axis, Color color) =>
         _drawActions.Enqueue(() =>
         {
+            if (_drawer == null)
+                return;
+
+            var fillColor = Color.FromArgb(color.A / 2, color.R / 2, color.G / 2, color.B / 2);
+
             const float kSegments = 16.0f;
-            const int vertexCount = 16;
-            const float kIncrement = Settings.Tau / kSegments;
-
-            var theta = 0.0f;
-
-            GL.Color4(color.R, color.G, color.B, (byte)128);
-            GL.Begin(PrimitiveType.TriangleFan);
-            GL.VertexPointer(vertexCount * 2, VertexPointerType.Float, 0, IntPtr.Zero);
-
+            const float kIncrement = 2 * MathF.PI / kSegments;
+            var (sinInc, cosInc) = MathF.SinCos(kIncrement);
+            var r1 = new Vector2(cosInc, sinInc);
+            var v1 = center + radius * r1;
             for (var i = 0; i < kSegments; ++i)
             {
-                var x = (float)Math.Cos(theta);
-                var y = (float)Math.Sin(theta);
-                var vertex = center + radius * new Vector2(x, y);
-
-                GL.Vertex2(vertex.X, vertex.Y);
-
-                theta += kIncrement;
+                var r2 = new Vector2(cosInc * r1.X - sinInc * r1.Y, sinInc * r1.X + cosInc * r1.Y);
+                var v2 = center + radius * r2;
+                _drawer.Add(center, v1, v2, fillColor);
+                r1 = r2;
+                v1 = v2;
             }
 
-            GL.End();
+            r1 = new Vector2(1.0f, 0.0f);
+            v1 = center + radius * r1;
+            for (var i = 0; i < kSegments; ++i)
+            {
+                var r2 = new Vector2(cosInc * r1.X - sinInc * r1.Y, sinInc * r1.X + cosInc * r1.Y);
+                var v2 = center + radius * r2;
+                _drawer.Add(v1, v2, color);
+                r1 = r2;
+                v1 = v2;
+            }
 
-            DrawSegment(center, center + radius * axis, color);
+            var p = center + radius * axis;
+            _drawer.Add(center, p, color);
         });
 
     void IDebugDrawer.DrawSegment(Vector2 p1, Vector2 p2, Color color) =>
-        _drawActions.Enqueue(() => DrawSegment(p1, p2, color));
+        _drawActions.Enqueue(() => _drawer?.Add(p1, p2, color));
 
     void IDebugDrawer.DrawXForm(Vector2 p, float m11, float m12, float m21, float m22) =>
         _drawActions.Enqueue(() =>
         {
-            const float kAxisScale = 0.4f;
+            if (_drawer == null)
+                return;
 
-            GL.Begin(PrimitiveType.Lines);
-            GL.Color3(1.0f, 0.0f, 0.0f);
-            GL.Vertex2(p.X, p.Y);
+            const float kAxisScale = 0.4f;
 
             var ex = new Vector2(m11, m21);
             var b = p + kAxisScale * ex;
 
-            GL.Vertex2(b.X, b.Y);
-            GL.Color3(0.0f, 1.0f, 0.0f);
-            GL.Vertex2(p.X, p.Y);
+            _drawer.Add(p, b, Color.Red);
 
             var ey = new Vector2(m12, m22);
             b = p + kAxisScale * ey;
 
-            GL.Vertex2(b.X, b.Y);
-            GL.End();
+            _drawer.Add(p, b, Color.Green);
         });
 
     public void SetBody(Body body) =>
-        focusBody = body;
+        _focusBody = body;
+
+    protected override void OnLoad()
+    {
+        base.OnLoad();
+
+        if ((Flags & ContextFlags.Debug) != 0)
+        {
+            GL.DebugMessageCallback(DebugMessageDelegate, IntPtr.Zero);
+            GL.Enable(EnableCap.DebugOutput);
+            GL.Enable(EnableCap.DebugOutputSynchronous);
+        }
+
+        GL.ClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+
+        _drawer = new Drawer(new Camera());
+    }
+
+    protected override void OnUnload()
+    {
+        base.OnUnload();
+        _drawer?.Dispose();
+        _drawer = null;
+    }
 
     protected override void OnKeyDown(KeyboardKeyEventArgs args)
     {
@@ -173,24 +183,23 @@ public class Window(string title, int width, int height, Body? focusBody = null)
     {
         base.OnRenderFrame(args);
 
-        GL.ClearColor(Color.CornflowerBlue);
         GL.Clear(ClearBufferMask.ColorBufferBit);
 
-        GL.LoadIdentity();
-        var transform = Matrix4.Identity;
-        if (focusBody != null)
-        {
-            var position = focusBody.GetPosition();
-            transform = Matrix4.Mult(transform, Matrix4.CreateTranslation(-position.X, -position.Y, 0));
-            var ratio = ClientSize.X / (float)ClientSize.Y;
-            const float zoom = 0.05f;
-            transform = Matrix4.Mult(transform, Matrix4.CreateScale(zoom, zoom * ratio, 1.0f));
-        }
+        var drawer = _drawer;
 
-        GL.MultMatrix(ref transform);
+        if (drawer != null)
+        {
+            if (_focusBody != null)
+                drawer.Camera.Center = _focusBody.GetPosition();
+            drawer.Camera.Zoom = 0.5f;
+            drawer.Camera.Width = ClientSize.X;
+            drawer.Camera.Height = ClientSize.Y;
+        }
 
         while (_drawActions.TryDequeue(out var action))
             action.Invoke();
+
+        drawer?.Flush();
 
         SwapBuffers();
     }
@@ -202,12 +211,35 @@ public class Window(string title, int width, int height, Body? focusBody = null)
         GL.Viewport(0, 0, args.Width, args.Height);
     }
 
-    private static void DrawSegment(Vector2 p1, Vector2 p2, Color color)
+    private void DrawPolygon(Vector2[] vertices, int vertexCount, Color color) =>
+        DrawPolygon(new ReadOnlySpan<Vector2>(vertices, 0, vertexCount), color);
+
+    private void DrawPolygon(ReadOnlySpan<Vector2> vertices, Color color)
     {
-        GL.Color4(color.R, color.G, color.B, (byte)255);
-        GL.Begin(PrimitiveType.Lines);
-        GL.Vertex2(p1.X, p1.Y);
-        GL.Vertex2(p2.X, p2.Y);
-        GL.End();
+        if (_drawer == null)
+            return;
+
+        var p1 = vertices[^1];
+        foreach (var p2 in vertices)
+        {
+            _drawer.Add(p1, p2, color);
+            p1 = p2;
+        }
+    }
+
+    private static void OnDebugMessage(
+        DebugSource source,
+        DebugType type,
+        int id,
+        DebugSeverity severity,
+        int length,
+        IntPtr pMessage,
+        IntPtr pUserParam
+    )
+    {
+        var message = Marshal.PtrToStringAnsi(pMessage, length);
+        Console.WriteLine("[{0} source={1} type={2} id={3}] {4}", severity, source, type, id, message);
+        if (type == DebugType.DebugTypeError)
+            throw new Exception(message);
     }
 }

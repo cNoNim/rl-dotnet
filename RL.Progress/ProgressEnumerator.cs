@@ -2,11 +2,12 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 using RL.Core;
 
 namespace RL.Progress;
 
-public struct ProgressGenerator<TG, T>(TG generator, string? title = null) :
+public struct ProgressGenerator<TG, T>(TG generator, string? title = null, CancellationToken token = default) :
     IGenerator<ProgressGenerator<TG, T>, T>
     where TG : IGenerator<T>
 {
@@ -19,6 +20,12 @@ public struct ProgressGenerator<TG, T>(TG generator, string? title = null) :
     {
         get
         {
+            if (token.IsCancellationRequested)
+            {
+                Console.WriteLine();
+                token.ThrowIfCancellationRequested();
+            }
+
             var result = generator[index];
             if (Console.IsOutputRedirected)
                 return result;
