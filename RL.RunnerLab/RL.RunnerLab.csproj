@@ -18,8 +18,4 @@
         <ProjectReference Include="..\RL.Random\RL.Random.csproj"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Box2D.NetStandard" Version="2.4.7-alpha"/>
-    </ItemGroup>
-
 </Project>

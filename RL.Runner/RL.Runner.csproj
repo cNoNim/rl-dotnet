@@ -14,6 +14,7 @@
         <ProjectReference Include="..\RL.Algorithms\RL.Algorithms.csproj"/>
         <ProjectReference Include="..\RL.Box2D\RL.Box2D.csproj"/>
         <ProjectReference Include="..\RL.Classic\RL.Classic.csproj" />
+        <ProjectReference Include="..\RL.Draw\RL.Draw.csproj"/>
         <ProjectReference Include="..\RL.Plot\RL.Plot.csproj" />
         <ProjectReference Include="..\RL.Progress\RL.Progress.csproj" />
         <ProjectReference Include="..\RL.Toy\RL.Toy.csproj" />

@@ -9,26 +9,18 @@ using RL.MDArrays;
 
 namespace RL.Runner;
 
-public class EnvironmentWindow<TE, TO, TA>
+public class EnvironmentWindow<TE, TO, TA>(TE environment, int width, int height)
     where TE : IEnvironment<TO, TA>
 {
     private readonly Dictionary<Keys, IAgent<TO, TA>> _agents = [];
 
-    private IAgent<TO, TA>? _agent;
     private bool _needReset = true;
     private IAgent<TO, TA>? _nextAgent;
+    private Window? _window;
 
-    public EnvironmentWindow(TE environment, int width, int height)
-    {
-        Environment = environment;
-        var window = new Window(environment.Name, width, height);
-        window.UpdateFrame += OnUpdateFrame;
-        window.Unload += OnUnload;
-        Window = window;
-    }
-
-    public TE Environment { get; }
-    public Window Window { get; }
+    public TE Environment => environment;
+    public Window Window => _window ?? throw new InvalidOperationException();
+    public IAgent<TO, TA>? Agent { get; private set; }
     public float TotalReward { get; private set; }
     public int Episode { get; private set; } = -1;
 
@@ -40,24 +32,30 @@ public class EnvironmentWindow<TE, TO, TA>
 
     public void AddAgent(Keys key, IAgent<TO, TA> agent)
     {
-        if (_agents.Count == 0)
-            _agent = agent;
-        _agents.Add(key, agent);
         _nextAgent = agent;
+        _agents.Add(key, agent);
     }
 
     public void Run()
     {
-        LoadEvent?.Invoke(this);
-        Window.VSync = VSyncMode.Off;
-        Window.Run();
+        using var window = new Window(Environment.Name, width, height);
+        window.Load += OnLoad;
+        window.UpdateFrame += OnUpdateFrame;
+        window.Unload += OnUnload;
+        window.VSync = VSyncMode.Off;
+        _window = window;
+        window.Run();
+        _window = null;
     }
+
+    private void OnLoad() =>
+        LoadEvent?.Invoke(this);
 
     private void Reset()
     {
         if (_nextAgent != null)
         {
-            _agent = _nextAgent;
+            Agent = _nextAgent;
             _nextAgent = null;
         }
 
@@ -74,11 +72,11 @@ public class EnvironmentWindow<TE, TO, TA>
 
         foreach (var agent in _agents)
             if (Window.KeyboardState.IsKeyReleased(agent.Key))
-                _agent = agent.Value;
+                Agent = agent.Value;
 
-        if (_agent != null && !Window.Paused)
+        if (Agent != null && !Window.Paused)
         {
-            var action = _agent.Predict(Environment.State);
+            var action = Agent.Predict(Environment.State);
             var transition = Environment.Step(action);
             TotalReward += transition.Reward;
 
@@ -96,10 +94,28 @@ public class EnvironmentWindow<TE, TO, TA>
 
     private void OnUnload()
     {
+        foreach (var agent in _agents)
+        {
+            if (agent.Value is IDisposable d)
+                d.Dispose();
+        }
+
+        _agents.Clear();
+        if (_nextAgent is IDisposable disposable)
+            disposable.Dispose();
+        _nextAgent = null;
+        Agent = null;
+
         UnloadEvent?.Invoke(this);
         UnloadEvent = null;
         Window.UpdateFrame += OnUpdateFrame;
         Window.Unload += OnUnload;
+    }
+
+    public void Dispose()
+    {
+        Window.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
 

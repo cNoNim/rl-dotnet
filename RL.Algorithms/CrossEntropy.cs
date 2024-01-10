@@ -20,7 +20,7 @@ public class CrossEntropy(
 {
     private readonly IRandomGenerator _random = new RandomGenerator();
 
-    public (Array1D<float>, long) Train<TG>(
+    public (Array1D<float> rewards, int terminatedCount) Train<TG>(
         TG episodeGenerator,
         Module<Tensor, Tensor> model,
         IEnvironment<Box<Array1D<float>>, Discrete, Array1D<float>, int> environment,
@@ -36,7 +36,7 @@ public class CrossEntropy(
         List<Tensor> states = [];
         List<Tensor> actions = [];
 
-        var step = 0;
+        var terminatedCount = 0;
 
         foreach (var episode in episodeGenerator.AsGeneratorEnumerable())
         {
@@ -51,26 +51,26 @@ public class CrossEntropy(
             totalRewards[episode] = rewards.Average();
 
             var quantile = as_tensor(rewards).quantile(q).ToDouble();
-            foreach (var (s, a, reward) in trajectories)
+            foreach (var (s, a, reward, terminated) in trajectories)
             {
                 if (reward <= quantile)
                     continue;
+
+                if (terminated)
+                    terminatedCount++;
 
                 states.Add(s);
                 actions.Add(a);
             }
 
             if (states.Count > 0)
-            {
                 TrainStep(model, optimizer, CrossEntropyLoss(), cat(states), cat(actions));
-                step++;
-            }
 
             states.Clear();
             actions.Clear();
         }
 
-        return (totalRewards, step);
+        return (totalRewards, terminatedCount);
 
         static void TrainStep(
             Module<Tensor, Tensor> model,
@@ -88,7 +88,7 @@ public class CrossEntropy(
         }
     }
 
-    private static (Tensor states, Tensor actions, float totalReward) Trajectory(
+    private static (Tensor states, Tensor actions, float totalReward, bool terminated) Trajectory(
         Module<Tensor, Tensor> model,
         IEnvironment<Box<Array1D<float>>, Discrete, Array1D<float>, int> environment,
         Device device,
@@ -101,6 +101,7 @@ public class CrossEntropy(
         var totalReward = 0.0f;
         var state = as_tensor(environment.Reset(), device: device);
 
+        var terminated = false;
         foreach (var _ in Range<int>(length))
         {
             states.Add(state);
@@ -114,10 +115,13 @@ public class CrossEntropy(
             totalReward += t.Reward;
 
             if (t.Terminated || t.Truncated)
+            {
+                terminated = t.Terminated;
                 break;
+            }
         }
 
-        return (stack(states), as_tensor(actions, device: device), totalReward);
+        return (stack(states), as_tensor(actions, device: device), totalReward, terminated);
 
         static int ChoiceAction(
             Module<Tensor, Tensor> model,

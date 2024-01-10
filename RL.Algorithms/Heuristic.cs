@@ -17,7 +17,7 @@ public static class HeuristicExtensions
     {
         var rewards = episodeGenerator.Count.Zeroes<float>();
 
-        foreach (var episode in episodeGenerator.AsGeneratorEnumerable<TG, int>())
+        foreach (var episode in episodeGenerator.AsGeneratorEnumerable())
         {
             var episodeReward = 0.0f;
             environment.Reset();

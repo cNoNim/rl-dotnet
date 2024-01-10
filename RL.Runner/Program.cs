@@ -1,6 +1,8 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Box2D.NetStandard.Dynamics.World.Callbacks;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using RL.Algorithms;
@@ -24,7 +26,10 @@ var window = environment.Window();
 
 var device = CPU;
 
-var trainThread = new Thread(() =>
+var tokenSource = new CancellationTokenSource();
+var token = tokenSource.Token;
+
+var task = Task.Run(() =>
 {
     var env = new LunarLanderEnvironment();
 
@@ -33,55 +38,96 @@ var trainThread = new Thread(() =>
 
     var episodeGenerator = Range(count);
 
-    builder.Signal(env.Heuristic(episodeGenerator.Progress("Heuristic")), c => c.SetTitle("Heuristic"));
+    builder.Signal(env.Heuristic(episodeGenerator.Progress("Heuristic", token)), c => c.SetTitle("Heuristic"));
 
-    window.AddAgent(Keys.D1, Agent.Func<Array1D<float>, int>(environment.Heuristic));
+    window.AddAgent(Keys.D1, Agent.Func<Array1D<float>, int>("Heuristic", environment.Heuristic));
 
-    using var crossEntropyModel = new CrossEntropyModel(inputSize, outputSize, hiddenSize, device: device);
-    var crossEntropyLocation =
-        $"Data/{env.Name}_{crossEntropyModel.GetName()}_{inputSize}x{hiddenSize}x{outputSize}.weights";
-    if (File.Exists(crossEntropyLocation))
-        crossEntropyModel.load(crossEntropyLocation);
-    else
+    try
     {
-        var crossEntropy = new CrossEntropy(20, 1000);
-        var (rewards, steps) =
-            crossEntropy.Train(episodeGenerator.Progress("Cross Entropy"), crossEntropyModel, env, device);
-        builder.Signal(rewards, c => c.SetTitle($"Cross Entropy {steps}"));
-        crossEntropyModel.save(crossEntropyLocation);
+        var model = new CrossEntropyModel(inputSize, outputSize, hiddenSize, device: device);
+        var location =
+            $"Data/{env.Name}_{model.GetName()}_{inputSize}x{hiddenSize}x{outputSize}.weights";
+        if (File.Exists(location))
+        {
+            model.load(location);
+            Console.WriteLine($"{model.GetName()} loaded from {location}");
+        }
+        else
+        {
+            var crossEntropy = new CrossEntropy(20, 1000);
+            var (rewards, terminatedCount) =
+                crossEntropy.Train(episodeGenerator.Progress("Cross Entropy", token), model, env, device);
+            builder.Signal(rewards, c => c.SetTitle($"Cross Entropy {terminatedCount}"));
+            model.save(location);
+        }
+
+        window.AddAgent(Keys.D2, Agent.Model(model));
+    }
+    catch (OperationCanceledException)
+    {
+        throw;
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine(e);
     }
 
-    window.AddAgent(Keys.D2, Agent.Model(crossEntropyModel));
-
-    using var dqnModel = new DQNModel(inputSize, outputSize, hiddenSize);
-    var dqnLocation = $"Data/{env.Name}_{dqnModel.GetName()}_{inputSize}x{hiddenSize}x{outputSize}.weights";
-    if (File.Exists(dqnLocation))
-        dqnModel.load(dqnLocation);
-    else
+    try
     {
-        using var policyModel = new DQNModel(inputSize, outputSize, hiddenSize);
+        var model = new DQNModel(inputSize, outputSize, hiddenSize);
+        var location = $"Data/{env.Name}_{model.GetName()}_{inputSize}x{hiddenSize}x{outputSize}.weights";
+        if (File.Exists(location))
+        {
+            model.load(location);
+            Console.WriteLine($"{model.GetName()} loaded from {location}");
+        }
+        else
+        {
+            using var policyModel = new DQNModel(inputSize, outputSize, hiddenSize);
+            var dqn = new DQN();
+            var (rewards, steps, terminatedCount) =
+                dqn.Train(episodeGenerator.Progress("DQN", token), model, policyModel, env);
+            builder.Signal(rewards, c => c.SetTitle($"DQN {steps} {terminatedCount}"));
+            model.save(location);
+        }
 
-        var dqn = new DQN();
-        var (rewards, steps) = dqn.Train(episodeGenerator.Progress("DQN"), dqnModel, policyModel, env);
-        builder.Signal(rewards, c => c.SetTitle($"DQN {steps}"));
-        dqnModel.save(dqnLocation);
+
+        window.AddAgent(Keys.D3, Agent.Model(model));
     }
-
-
-    window.AddAgent(Keys.D3, Agent.Model(dqnModel));
+    catch (OperationCanceledException)
+    {
+        throw;
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine(e);
+    }
 
     builder.ToPng($"Images/{env.Name}.png");
-});
+}, token);
 
-trainThread.Start();
-
-window.AddAgent(Keys.D0, Agent.Func<Array1D<float>, int>(UserControl));
+window.AddAgent(Keys.D0, Agent.Func<Array1D<float>, int>("User Control", UserControl));
 
 window.LoadEvent += OnLoad;
 window.UpdateEvent += OnUpdate;
 window.CompleteEvent += OnComplete;
 window.UnloadEvent += OnUnload;
 window.Run();
+
+tokenSource.Cancel();
+
+try
+{
+    await task;
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine("Task status: {0}", task.Status);
+}
+finally
+{
+    tokenSource.Dispose();
+}
 
 return;
 
@@ -115,7 +161,7 @@ static void OnUpdate(EnvironmentWindow<LunarLanderEnvironment, Array1D<float>, i
 }
 
 static void OnComplete(EnvironmentWindow<LunarLanderEnvironment, Array1D<float>, int> window) =>
-    PrintInfo(window, window.Episode, window.TotalReward);
+    UpdateTitle(window, window.Episode, window.TotalReward);
 
 static void OnUnload(EnvironmentWindow<LunarLanderEnvironment, Array1D<float>, int> window)
 {
@@ -128,11 +174,16 @@ static void OnUnload(EnvironmentWindow<LunarLanderEnvironment, Array1D<float>, i
     window.UnloadEvent -= OnUnload;
 }
 
-static void PrintInfo(EnvironmentWindow<LunarLanderEnvironment, Array1D<float>, int> window, int episode,
-    float totalReward)
+static void UpdateTitle(
+    EnvironmentWindow<LunarLanderEnvironment, Array1D<float>, int> window,
+    int episode,
+    float totalReward
+)
 {
     var sb = new StringBuilder();
-    sb.Append(
-        $"{window.Environment.Name} episode: {episode} steps: {window.Environment.Steps} reward: {totalReward:#0.00}");
+    sb.Append($"{window.Environment.Name} ");
+    if (window.Agent is { } agent)
+        sb.Append($"({agent.Name}) ");
+    sb.Append($"episode: {episode} steps: {window.Environment.Steps} reward: {totalReward:#0.00}");
     window.Window.Title = sb.ToString();
 }
