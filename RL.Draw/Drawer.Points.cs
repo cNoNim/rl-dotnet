@@ -37,9 +37,9 @@ public partial class Drawer
                 #version 330 core
                 uniform mat4 projectionMatrix;
                 layout(location = 0) in vec2 v_position;
-                layout(location = 1) in half4 v_color;
-                layout(location = 2) in half v_size;
-                out half4 f_color;
+                layout(location = 1) in vec4 v_color;
+                layout(location = 2) in float v_size;
+                out vec4 f_color;
 
                 void main(void)
                 {
@@ -55,8 +55,8 @@ public partial class Drawer
             const string fs =
                 """
                 #version 330 core
-                in half4 f_color;
-                out half4 color;
+                in vec4 f_color;
+                out vec4 color;
 
                 void main()
                 {
