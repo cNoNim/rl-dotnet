@@ -29,7 +29,7 @@ public readonly struct MonteCarlo(
         var q = qTable ?? CreateQ(environment);
         var counter = (environment.ObservationSpace.Size, environment.ActionSpace.Size).Zeroes<int>();
 
-        var steps = new List<Transition<int, int, float>>(stepCount);
+        var steps = new List<Transition<int, int>>(stepCount);
         var returns = new double[stepCount + 1];
 
         foreach (var episode in Range<int>(episodeCount))
@@ -42,7 +42,7 @@ public readonly struct MonteCarlo(
                 var action = q[state].EpsilonGreedy(epsilon).ChoiceIndex(environment.Random);
                 var t = environment.Step(action);
                 steps.Add(t);
-                state = t.NextState;
+                state = t.NextObservation;
 
                 if (t.Terminated || t.Truncated)
                     break;

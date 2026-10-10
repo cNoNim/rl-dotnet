@@ -15,14 +15,14 @@ public abstract class EnvironmentBase<TOSpace, TASpace, TO, TA, TOptions> :
     protected EnvironmentBase(string? name = null, TO? startState = default)
     {
         Name = name ?? GetType().Name;
-        State = startState ?? Reset();
+        Observation = startState ?? Reset();
     }
 
     protected virtual TOptions? DefaultOptions => default;
     protected TOptions? Options { get; private set; }
     public virtual int? MaxStepCount => null;
 
-    public TO State { get; private set; }
+    public TO Observation { get; private set; }
 
     public string Name { get; }
 
@@ -31,27 +31,20 @@ public abstract class EnvironmentBase<TOSpace, TASpace, TO, TA, TOptions> :
     public IRandomGenerator Random => _random ??= new RandomGenerator();
     public abstract TOSpace ObservationSpace { get; }
     public abstract TASpace ActionSpace { get; }
+    public abstract TO SampleObservation(IRandomGenerator random);
+    public abstract TA SampleAction(IRandomGenerator random);
 
-    public Transition<TO, TA, float>
+    public Transition<TO, TA>
         Step(TA action)
     {
-        Check(action, ActionSpace);
-
-        var state = State;
+        var state = Observation;
         var step = Steps++;
         if (step >= MaxStepCount)
-            return new Transition<TO, TA, float>(state, action, state, 0, false, true);
+            return new Transition<TO, TA>(state, action, state, 0, false, true);
 
         var (nextState, reward, terminated) = DoStep(state, action);
-        State = nextState;
-        return new Transition<TO, TA, float>(state, action, nextState, reward, terminated, Steps >= MaxStepCount);
-
-        [Conditional("DEBUG")]
-        static void Check(TA action, TASpace actionSpace)
-        {
-            if (!actionSpace.Contains(action))
-                throw new ArgumentOutOfRangeException(nameof(action), "Invalid");
-        }
+        Observation = nextState;
+        return new Transition<TO, TA>(state, action, nextState, reward, terminated, Steps >= MaxStepCount);
     }
 
     public TO Reset(uint? seed = null, object? options = null)
@@ -59,10 +52,8 @@ public abstract class EnvironmentBase<TOSpace, TASpace, TO, TA, TOptions> :
         _random = seed != null ? new RandomGenerator(seed) : null;
         Options = options is TOptions opts ? opts : DefaultOptions;
         Steps = 0;
-        return State = DoReset(Options);
+        return Observation = DoReset(Options);
     }
-
-    public virtual TA Heuristic(TO state) => throw new NotSupportedException();
 
     protected abstract (TO nextState, float reward, bool terminated) DoStep(TO state, TA action);
 

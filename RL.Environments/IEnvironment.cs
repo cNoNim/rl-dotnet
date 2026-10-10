@@ -7,13 +7,13 @@ public interface IEnvironment<TO, TA>
 {
     public string Name { get; }
     public IRandomGenerator Random { get; }
-    public int Steps { get; }
-    public TO State { get; }
+    public TO Observation { get; }
 
-    public Transition<TO, TA, float> Step(TA action);
+    public Transition<TO, TA> Step(TA action);
     public TO Reset(uint? seed = null, object? options = null);
 
-    public TA Heuristic(TO state);
+    TO SampleObservation(IRandomGenerator random);
+    TA SampleAction(IRandomGenerator random);
 }
 
 public interface IEnvironment<out TOSpace, out TASpace, TO, TA> : IEnvironment<TO, TA>

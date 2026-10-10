@@ -38,9 +38,9 @@ public readonly struct Sarsa(
             foreach (var _ in Range<int>(stepCount))
             {
                 var t = environment.Step(action);
-                var nextAction = q[t.NextState].EpsilonGreedy(epsilon).ChoiceIndex(environment.Random);
+                var nextAction = q[t.NextObservation].EpsilonGreedy(epsilon).ChoiceIndex(environment.Random);
 
-                q[t.State][t.Action] += alpha * (t.Reward + gamma * q[t.NextState][nextAction] - q[t.State][t.Action]);
+                q[t.Observation][t.Action] += alpha * (t.Reward + gamma * q[t.NextObservation][nextAction] - q[t.Observation][t.Action]);
 
                 action = nextAction;
 

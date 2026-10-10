@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Numerics;
 using OxyPlot;
 using OxyPlot.Axes;
-using OxyPlot.ImageSharp;
 using OxyPlot.Legends;
 using OxyPlot.Series;
 using RL.Core;
@@ -13,22 +11,15 @@ using RL.Generators;
 
 namespace RL.Plot;
 
-public ref struct PlotBuilder(string title)
+public struct PlotBuilder(string title)
 {
-    private AxisConfigurator? _xAxisConfigurator;
-    private AxisConfigurator? _yAxisConfigurator;
+    private readonly List<AxisConfigurator> _axisConfigurators = [];
 
     private readonly List<(IEnumerable<DataPoint> series, SeriesConfigurator? configurator)> _signals = [];
 
-    public PlotBuilder ConfigureXAxis(Func<AxisConfigurator, AxisConfigurator> configure)
+    public PlotBuilder ConfigureAxis(Func<AxisConfigurator, AxisConfigurator> configure)
     {
-        _xAxisConfigurator = configure(new AxisConfigurator());
-        return this;
-    }
-
-    public PlotBuilder ConfigureYAxis(Func<AxisConfigurator, AxisConfigurator> configure)
-    {
-        _yAxisConfigurator = configure(new AxisConfigurator());
+        _axisConfigurators.Add(configure(new AxisConfigurator()));
         return this;
     }
 
@@ -46,7 +37,7 @@ public ref struct PlotBuilder(string title)
     }
 
     public PlotBuilder Signal<T>(
-        T[] array,
+        IEnumerable<T> array,
         Func<SeriesConfigurator, SeriesConfigurator>? configure = null
     ) where T : INumberBase<T>
     {
@@ -58,28 +49,7 @@ public ref struct PlotBuilder(string title)
         return this;
     }
 
-    public void ToSvg(string path, int width = 1280, int height = 720)
-    {
-        var model = Build();
-
-        using var stream = File.Create(path);
-
-        var exporter = new SvgExporter { Width = width, Height = height };
-        exporter.Export(model, stream);
-    }
-
-    public void ToPng(string path, int width = 1280, int height = 720)
-    {
-        var model = Build();
-        model.Background = OxyColors.White;
-
-        using var stream = File.Create(path);
-
-        var exporter = new PngExporter(width, height);
-        exporter.Export(model, stream);
-    }
-
-    private PlotModel Build()
+    public PlotModel Build()
     {
         var model = new PlotModel
         {
@@ -88,48 +58,44 @@ public ref struct PlotBuilder(string title)
 
         model.Legends.Add(new Legend
         {
-            LegendPlacement = LegendPlacement.Inside,
-            LegendPosition = LegendPosition.RightTop
+            LegendPlacement = LegendPlacement.Outside,
+            LegendPosition = LegendPosition.BottomCenter
         });
 
-        if (_xAxisConfigurator != null)
-            model.Axes.Add(CreateAxis(_xAxisConfigurator.Value, AxisPosition.Left));
-        if (_yAxisConfigurator != null)
-            model.Axes.Add(CreateAxis(_yAxisConfigurator.Value, AxisPosition.Bottom));
+        foreach (var configurator in _axisConfigurators)
+            model.Axes.Add(CreateAxis(configurator));
 
         foreach (var (signal, configurator) in _signals)
-            BuildSignal(signal, configurator);
+            AddSeries(model, new LineSeries { ItemsSource = signal }, configurator);
 
         return model;
-
-        void BuildSignal(IEnumerable<DataPoint> signal, SeriesConfigurator? configurator)
-        {
-            var lineSeries = new LineSeries
-            {
-                ItemsSource = signal
-            };
-
-            if (configurator != null)
-            {
-                if (configurator.Title != null)
-                    lineSeries.Title = configurator.Title;
-                if (configurator.Color != null)
-                    lineSeries.Color = OxyColor.Parse(configurator.Color);
-            }
-
-            model.Series.Add(lineSeries);
-        }
     }
 
-    private static Axis CreateAxis(AxisConfigurator configurator, AxisPosition position)
+    private static void AddSeries(PlotModel model, LineSeries series, SeriesConfigurator? configurator)
     {
-        var axis = new LinearAxis
+        if (configurator != null)
         {
-            Position = position
-        };
+            if (configurator.Title != null)
+                series.Title = configurator.Title;
+            if (configurator.Color != null)
+                series.Color = OxyColor.Parse(configurator.Color);
+        }
+
+        model.Series.Add(series);
+    }
+
+    private static Axis CreateAxis(AxisConfigurator configurator)
+    {
+        var axis = new LinearAxis();
+
+        if (configurator.Position != null)
+            axis.Position = configurator.Position.Value;
 
         if (configurator.Title != null)
             axis.Title = configurator.Title;
+
+        if (configurator.Key != null)
+            axis.Key = configurator.Key;
 
         if (configurator.Min != null)
             axis.Minimum = configurator.Min.Value;

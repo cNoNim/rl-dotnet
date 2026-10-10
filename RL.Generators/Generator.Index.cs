@@ -6,6 +6,11 @@ namespace RL.Generators;
 public static partial class Generator
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ZipGenerator<ReadOnlyAdapter<T>, SequenceGenerator<int>, T, int> Index<T>(
+        this ReadOnlyAdapter<T> generator
+    ) => Index<ReadOnlyAdapter<T>, T>(generator);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ZipGenerator<IGenerator<T>, SequenceGenerator<int>, T, int> Index<T>(
         this IGenerator<T> generator
     ) => Index<IGenerator<T>, T>(generator);

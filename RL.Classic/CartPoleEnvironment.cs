@@ -2,6 +2,7 @@
 using RL.Environments;
 using RL.Environments.Spaces;
 using RL.MDArrays;
+using RL.Random;
 using static System.MathF;
 
 namespace RL.Classic;
@@ -45,6 +46,11 @@ public class CartPoleEnvironment : EnvironmentBase<
     public override Box<Array1D<float>> ObservationSpace { get; }
 
     public override Discrete ActionSpace { get; } = new(2);
+    public override Array1D<float> SampleObservation(IRandomGenerator random) =>
+        throw new NotSupportedException();
+
+    public override int SampleAction(IRandomGenerator random) =>
+        random.Random(0, ActionSpace.Size);
 
     public override int? MaxStepCount => 500;
 

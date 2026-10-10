@@ -1,10 +1,10 @@
 namespace RL.Environments;
 
-public readonly record struct Transition<TO, TA, TR>(
-    TO State,
+public readonly record struct Transition<TO, TA>(
+    TO Observation,
     TA Action,
-    TO NextState,
-    TR Reward,
+    TO NextObservation,
+    float Reward,
     bool Terminated,
     bool Truncated
 );

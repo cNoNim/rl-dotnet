@@ -1,38 +1,52 @@
-using RL.Core;
+using System;
+using RL.Algorithms.Callbacks;
 using RL.Environments;
-using RL.Generators;
-using RL.MDArrays;
 
 namespace RL.Algorithms;
 
-public static class HeuristicExtensions
+public class Heuristic<TO, TA> :
+    IAlgorithm<TO, TA>
 {
-    public static Array1D<float> Heuristic<TO, TA, TG>(this IEnvironment<TO, TA> environment, TG episodeGenerator)
-        where TG : IGenerator<int> =>
-        Heuristic<IEnvironment<TO, TA>, TO, TA, TG>(environment, episodeGenerator);
+    private readonly CallbackCollection<TO, TA> _collection = new();
+    private readonly IEnvironment<TO, TA> _environment;
+    private readonly ICompletion _completion;
 
-    public static Array1D<float> Heuristic<TE, TO, TA, TG>(this TE environment, TG episodeGenerator)
-        where TE : IEnvironment<TO, TA>
-        where TG : IGenerator<int>
+    public Heuristic(
+        IEnvironment<TO, TA> environment,
+        ICompletion completion
+    )
     {
-        var rewards = episodeGenerator.Count.Zeroes<float>();
+        _environment = environment;
+        _completion = completion;
+        _collection.Register(completion);
+    }
 
-        foreach (var episode in episodeGenerator.AsGeneratorEnumerable())
+    public Transition<TO, TA> Transition { get; private set; }
+    public double Loss => 0.0;
+
+    public bool Register<T>(T callback) where T : ICallbackNode =>
+        _collection.Register(callback);
+
+    public void Run(Func<TO, TA> heuristic)
+    {
+        _environment.Reset();
+        try
         {
-            var episodeReward = 0.0f;
-            environment.Reset();
+            _collection.Before(this);
+
             while (true)
             {
-                var action = environment.Heuristic(environment.State);
-                var transition = environment.Step(action);
-                episodeReward += transition.Reward;
-                if (transition.Terminated || transition.Truncated)
-                    break;
+                var action = heuristic(_environment.Observation);
+                _collection.BeforeStep(this);
+                Transition = _environment.Step(action);
+                _collection.Step(this);
+                if (_completion.Complete)
+                    return;
             }
-
-            rewards[episode] = episodeReward;
         }
-
-        return rewards;
+        finally
+        {
+            _collection.After(this);
+        }
     }
 }

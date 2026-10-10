@@ -10,6 +10,11 @@
     <ItemGroup>
         <PackageReference Include="OxyPlot.Core" Version="2.1.2" />
         <PackageReference Include="OxyPlot.ImageSharp" Version="2.1.2" />
+        <PackageReference Include="OxyPlot.SkiaSharp" Version="2.1.2" />
+        <PackageReference Include="Silk.NET.Input.Glfw" Version="2.20.0" />
+        <PackageReference Include="Silk.NET.OpenGL" Version="2.20.0" />
+        <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.20.0" />
+        <PackageReference Include="SkiaSharp" Version="2.88.7" />
     </ItemGroup>
 
     <ItemGroup>

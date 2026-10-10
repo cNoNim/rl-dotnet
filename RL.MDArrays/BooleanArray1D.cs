@@ -51,4 +51,12 @@ public readonly struct BooleanArray1D :
     }
 
     bool IGenerator<bool>.this[int index] => this[index];
+
+    public bool All()
+    {
+        for (var i = 0; i < Shape; i++)
+            if (!this[i])
+                return false;
+        return true;
+    }
 }

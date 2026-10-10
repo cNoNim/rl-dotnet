@@ -39,14 +39,14 @@ public readonly struct QLearning(
                 var action = q[state].EpsilonGreedy(epsilon).ChoiceIndex(environment.Random);
                 var t = environment.Step(action);
 
-                q[t.State][t.Action] += alpha * (t.Reward + gamma * q[t.NextState].Max() - q[t.State][t.Action]);
+                q[t.Observation][t.Action] += alpha * (t.Reward + gamma * q[t.NextObservation].Max() - q[t.Observation][t.Action]);
 
                 totalReward += t.Reward;
 
                 if (t.Terminated || t.Truncated)
                     break;
 
-                state = t.NextState;
+                state = t.NextObservation;
             }
 
             totalRewards[episode] = totalReward;

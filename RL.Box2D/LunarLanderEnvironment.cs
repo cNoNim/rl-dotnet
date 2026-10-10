@@ -19,9 +19,9 @@ using Color = System.Drawing.Color;
 namespace RL.Box2D;
 
 public class LunarLanderEnvironment : EnvironmentBase<
-    Box<Array1D<float>>,
+    Box<LunarLanderObservation>,
     Discrete,
-    Array1D<float>,
+    LunarLanderObservation,
     int
 >
 {
@@ -29,7 +29,7 @@ public class LunarLanderEnvironment : EnvironmentBase<
     private const float Scale = 30;
 
     private const float MainEnginePower = 13;
-    private const float SideEnginePower = 0.6f;
+    private const float SideEnginePower = 1.0f;
 
     private const float InitialRandom = 1000;
 
@@ -70,22 +70,26 @@ public class LunarLanderEnvironment : EnvironmentBase<
     {
         _world = new World(new Vector2(0, gravity));
 
-        Array1D<float> high =
-        [
-            1.5f,
-            1.5f,
-            5.0f,
-            5.0f,
+        var high = new LunarLanderObservation
+        (
+            new Vector2(1.5f, 1.5f),
+            new Vector2(5.0f, 5.0f),
             PI,
             5.0f,
-            1.0f,
-            1.0f,
-        ];
-        var low = -high;
-        low[6] = 0.0f;
-        low[7] = 0.0f;
+            true,
+            true
+        );
 
-        ObservationSpace = new Box<Array1D<float>>(low, high);
+        var low = new LunarLanderObservation(
+            -high.Delta,
+            -high.Velocity,
+            -high.Angle,
+            -high.AngularVelocity,
+            false,
+            false
+        );
+
+        ObservationSpace = new Box<LunarLanderObservation>(low, high);
     }
 
     public IDebugDrawer? Drawer { get; set; }
@@ -94,11 +98,29 @@ public class LunarLanderEnvironment : EnvironmentBase<
 
     public Body Lander => _lander ?? throw new InvalidOperationException();
 
-    public override Box<Array1D<float>> ObservationSpace { get; }
+    public override Box<LunarLanderObservation> ObservationSpace { get; }
     public override Discrete ActionSpace { get; } = new(4);
+
+    public override LunarLanderObservation SampleObservation(IRandomGenerator random)
+    {
+        var low = ObservationSpace.Low;
+        var high = ObservationSpace.High;
+        return new LunarLanderObservation(
+            random.Random(low.Delta, high.Delta),
+            random.Random(low.Velocity, high.Velocity),
+            random.Random(low.Angle, high.Angle),
+            random.Random(low.AngularVelocity, high.AngularVelocity),
+            random.Random(0, 1) != 0,
+            random.Random(0, 1) != 0
+        );
+    }
+
+    public override int SampleAction(IRandomGenerator random) =>
+        random.Random(0, ActionSpace.Size);
+
     public override int? MaxStepCount => 1000;
 
-    protected override Array1D<float> DoReset()
+    protected override LunarLanderObservation DoReset()
     {
         Destroy();
         World.SetContactListener(new ContactDetector(this));
@@ -227,7 +249,7 @@ public class LunarLanderEnvironment : EnvironmentBase<
             _legs[index] = leg;
         }
 
-        return Step(0).NextState;
+        return Step(0).NextObservation;
 
         void Destroy()
         {
@@ -246,8 +268,8 @@ public class LunarLanderEnvironment : EnvironmentBase<
         }
     }
 
-    protected override (Array1D<float> nextState, float reward, bool terminated)
-        DoStep(Array1D<float> _, int action)
+    protected override (LunarLanderObservation nextState, float reward, bool terminated)
+        DoStep(LunarLanderObservation _, int action)
     {
         if (_lander == null)
             throw new InvalidOperationException();
@@ -296,28 +318,27 @@ public class LunarLanderEnvironment : EnvironmentBase<
         Drawer?.DrawSegment(position, target, Color.Red);
         var delta = position - target;
 
-        const float wScale = ViewportW / Scale / 2;
-        const float hScale = ViewportH / Scale / 2;
-        Array1D<float> nextState =
-        [
-            delta.X / wScale,
-            delta.Y / hScale,
-            velocity.X * wScale / Fps,
-            velocity.Y * hScale / Fps,
+        var scale = new Vector2(ViewportW / Scale / 2, ViewportH / Scale / 2);
+        var leftContact = _legs[0]!.GetUserData<bool>();
+        var rightContact = _legs[1]!.GetUserData<bool>();
+        var nextState = new LunarLanderObservation(
+            delta / scale,
+            velocity * scale / Fps,
             angle,
             20.0f * angularVelocity / Fps,
-            _legs[0]!.GetUserData<bool>() ? 1.0f : 0.0f,
-            _legs[1]!.GetUserData<bool>() ? 1.0f : 0.0f
-        ];
+            leftContact,
+            rightContact
+        );
 
         var reward = 0.0f;
 
         var shaping =
-            -100 * Sqrt(nextState[0] * nextState[0] + nextState[1] * nextState[1])
-            - 100 * Sqrt(nextState[2] * nextState[2] + nextState[3] * nextState[3])
-            - 100 * Abs(nextState[4])
-            + 10 * nextState[6]
-            + 10 * nextState[7];
+                -100 * nextState.Delta.Length()
+                - 100 * nextState.Velocity.Length()
+                - 100 * Abs(nextState.Angle)
+                + (nextState.LeftContact ? 10 : 0)
+                + (nextState.RightContact ? 10 : 0)
+            ;
 
         if (_prevShaping.HasValue)
             reward = shaping - _prevShaping.Value;
@@ -327,7 +348,7 @@ public class LunarLanderEnvironment : EnvironmentBase<
         reward -= sPower * 0.03f;
 
         var terminated = false;
-        if (_gameOver || Abs(nextState[0]) >= 1.0f)
+        if (_gameOver || Abs(nextState.Delta.X) >= 1.0f)
         {
             terminated = true;
             reward = -100;
@@ -342,20 +363,20 @@ public class LunarLanderEnvironment : EnvironmentBase<
         return (nextState, reward, terminated);
     }
 
-    public override int Heuristic(Array1D<float> state)
+    public static int Heuristic(LunarLanderObservation observation)
     {
-        var angle = state[0] * 0.5f + state[2] * 1.0f;
+        var angle = observation.Delta.X * 0.5f + observation.Velocity.X * 1.0f;
         if (angle > 0.4f)
             angle = 0.4f;
         if (angle < -0.4f)
             angle = -0.4f;
-        var hover = 0.55f * Abs(state[0]);
-        var angleDelta = (angle - state[4]) * 0.5f - state[5] * 1.0f;
-        var hoverDelta = (hover - state[1]) * 0.5f - state[3] * 0.5f;
-        if (state[6] != 0.0f || state[7] != 0.0f)
+        var hover = 0.55f * Abs(observation.Delta.X);
+        var angleDelta = (angle - observation.Angle) * 0.5f - observation.AngularVelocity * 1.0f;
+        var hoverDelta = (hover - observation.Delta.Y) * 0.5f - observation.Velocity.Y * 0.5f;
+        if (observation.LeftContact || observation.RightContact)
         {
             angleDelta = 0;
-            hoverDelta = -state[3] * 0.5f;
+            hoverDelta = -observation.Velocity.Y * 0.5f;
         }
 
         if (hoverDelta > Abs(angleDelta) && hoverDelta > 0.05f)

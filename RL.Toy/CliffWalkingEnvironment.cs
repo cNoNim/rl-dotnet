@@ -47,6 +47,12 @@ public class CliffWalkingEnvironment : EnvironmentBase<Discrete, Discrete, int, 
     }
 
     public override Discrete ActionSpace { get; }
+    public override int SampleObservation(IRandomGenerator random) =>
+        random.Random(0, ObservationSpace.Size);
+
+    public override int SampleAction(IRandomGenerator random) =>
+        random.Random(0, ActionSpace.Size);
+
     public override Discrete ObservationSpace { get; }
 
     protected override (int nextState, float reward, bool terminated) DoStep(int state, int action)

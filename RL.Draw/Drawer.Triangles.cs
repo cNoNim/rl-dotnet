@@ -1,6 +1,6 @@
 using System.Drawing;
-using OpenTK.Graphics.OpenGL;
-using OpenTK.Mathematics;
+using Silk.NET.Maths;
+using Silk.NET.OpenGL;
 
 namespace RL.Draw;
 
@@ -9,20 +9,22 @@ public partial class Drawer
     private class Triangles
     {
         private const int MaxVertices = 3 * 512;
-        private readonly Camera _camera;
-        private readonly Vector4h[] _colors = new Vector4h[MaxVertices];
+        private readonly GL _gl;
+        private readonly IProjectionMatrixBuilder _projectionMatrixBuilder;
+        private readonly Vector4D<Half>[] _colors = new Vector4D<Half>[MaxVertices];
         private readonly int _projectionUniform;
-        private readonly int[] _vboIds = new int[2];
-        private readonly Vector2[] _vertices = new Vector2[MaxVertices];
+        private readonly uint[] _vboIds = new uint[2];
+        private readonly Vector2D<float>[] _vertices = new Vector2D<float>[MaxVertices];
 
-        private int _count;
-        private int _programId;
+        private uint _count;
+        private uint _programId;
 
-        private int _vaoId;
+        private uint _vaoId;
 
-        public Triangles(Camera camera)
+        public unsafe Triangles(GL gl, IProjectionMatrixBuilder projectionMatrixBuilder)
         {
-            _camera = camera;
+            _gl = gl;
+            _projectionMatrixBuilder = projectionMatrixBuilder;
 
             const int vertexAttribute = 0;
             const int colorAttribute = 1;
@@ -58,33 +60,31 @@ public partial class Drawer
 
                 """;
 
-            _programId = CreateShaderProgram(vs, fs);
+            _programId = CreateShaderProgram(gl, vs, fs);
 
-            _projectionUniform = GL.GetUniformLocation(_programId, "projectionMatrix");
+            _projectionUniform = gl.GetUniformLocation(_programId, "projectionMatrix");
 
             // Generate
-            _vaoId = GL.GenVertexArray();
-            GL.GenBuffers(_vboIds.Length, _vboIds);
+            _vaoId = gl.GenVertexArray();
+            gl.GenBuffers((uint)_vboIds.Length, _vboIds);
 
-            GL.BindVertexArray(_vaoId);
-            GL.EnableVertexAttribArray(vertexAttribute);
-            GL.EnableVertexAttribArray(colorAttribute);
+            gl.BindVertexArray(_vaoId);
+            gl.EnableVertexAttribArray(vertexAttribute);
+            gl.EnableVertexAttribArray(colorAttribute);
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _vboIds[0]);
-            GL.VertexAttribPointer(vertexAttribute, 2, VertexAttribPointerType.Float, false, 0, 0);
-            GL.BufferData(BufferTarget.ArrayBuffer, _vertices.Length * Vector2.SizeInBytes,
-                _vertices, BufferUsageHint.DynamicDraw);
+            gl.BindBuffer(GLEnum.ArrayBuffer, _vboIds[0]);
+            gl.VertexAttribPointer(vertexAttribute, 2, VertexAttribPointerType.Float, false, 0, null);
+            gl.BufferData<Vector2D<float>>(GLEnum.ArrayBuffer, _vertices, GLEnum.DynamicDraw);
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _vboIds[1]);
-            GL.VertexAttribPointer(colorAttribute, 4, VertexAttribPointerType.HalfFloat, false, 0, 0);
-            GL.BufferData(BufferTarget.ArrayBuffer, _colors.Length * Vector4h.SizeInBytes, _colors,
-                BufferUsageHint.DynamicDraw);
+            gl.BindBuffer(GLEnum.ArrayBuffer, _vboIds[1]);
+            gl.VertexAttribPointer(colorAttribute, 4, VertexAttribPointerType.HalfFloat, false, 0, null);
+            gl.BufferData<Vector4D<Half>>(GLEnum.ArrayBuffer, _colors, GLEnum.DynamicDraw);
 
-            CheckError();
+            CheckError(gl);
 
             // Cleanup
-            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
-            GL.BindVertexArray(0);
+            gl.BindBuffer(GLEnum.ArrayBuffer, 0);
+            gl.BindVertexArray(0);
 
             _count = 0;
         }
@@ -93,14 +93,14 @@ public partial class Drawer
         {
             if (_vaoId != 0)
             {
-                GL.DeleteVertexArray(_vaoId);
-                GL.DeleteBuffers(_vboIds.Length, _vboIds);
+                _gl.DeleteVertexArray(_vaoId);
+                _gl.DeleteBuffers((uint)_vboIds.Length, _vboIds);
                 _vaoId = 0;
             }
 
             if (_programId != 0)
             {
-                GL.DeleteProgram(_programId);
+                _gl.DeleteProgram(_programId);
                 _programId = 0;
             }
         }
@@ -127,30 +127,30 @@ public partial class Drawer
             if (_count == 0)
                 return;
 
-            GL.UseProgram(_programId);
+            _gl.UseProgram(_programId);
 
             Span<float> matrix = stackalloc float[16];
-            _camera.BuildProjectionMatrix(matrix, 0.2f);
-            GL.UniformMatrix4(_projectionUniform, 1, false, ref matrix.GetPinnableReference());
+            _projectionMatrixBuilder.BuildProjectionMatrix(matrix, 0.2f);
+            _gl.UniformMatrix4(_projectionUniform, 1, false, matrix);
 
-            GL.BindVertexArray(_vaoId);
+            _gl.BindVertexArray(_vaoId);
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _vboIds[0]);
-            GL.BufferSubData(BufferTarget.ArrayBuffer, 0, _count * Vector2.SizeInBytes, _vertices);
+            _gl.BindBuffer(GLEnum.ArrayBuffer, _vboIds[0]);
+            _gl.BufferSubData<Vector2D<float>>(GLEnum.ArrayBuffer, 0, _vertices);
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _vboIds[1]);
-            GL.BufferSubData(BufferTarget.ArrayBuffer, 0, _count * Vector4h.SizeInBytes, _colors);
+            _gl.BindBuffer(GLEnum.ArrayBuffer, _vboIds[1]);
+            _gl.BufferSubData<Vector4D<Half>>(GLEnum.ArrayBuffer, 0, _colors);
 
-            GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, _count);
-            GL.Disable(EnableCap.Blend);
+            _gl.Enable(EnableCap.Blend);
+            _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            _gl.DrawArrays(PrimitiveType.Triangles, 0, _count);
+            _gl.Disable(EnableCap.Blend);
 
-            CheckError();
+            CheckError(_gl);
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
-            GL.BindVertexArray(0);
-            GL.UseProgram(0);
+            _gl.BindBuffer(GLEnum.ArrayBuffer, 0);
+            _gl.BindVertexArray(0);
+            _gl.UseProgram(0);
 
             _count = 0;
         }

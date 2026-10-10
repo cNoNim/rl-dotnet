@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using RL.Core;
-using RL.Environments;
 using RL.Environments.Spaces;
 using RL.MDArrays;
 using RL.Random;
@@ -12,7 +11,7 @@ using static TorchSharp.torch.optim;
 
 namespace RL.Algorithms;
 
-public class CrossEntropy(
+public class CrossEntropy<TO>(
     int trajectoryCount,
     int trajectoryLength,
     float q = 0.8f
@@ -20,12 +19,12 @@ public class CrossEntropy(
 {
     private readonly IRandomGenerator _random = new RandomGenerator();
 
-    public (Array1D<float> rewards, int terminatedCount) Train<TG>(
-        TG episodeGenerator,
+    public (Array1D<float> rewards, int terminatedCount) Train<TOSpace>(
         Module<Tensor, Tensor> model,
-        IEnvironment<Box<Array1D<float>>, Discrete, Array1D<float>, int> environment,
-        Device device
-    ) where TG : IGenerator<int>
+        IPolicyEnvironment<TOSpace, Discrete, TO, int> environment,
+        IGenerator<int> episodeGenerator
+    )
+        where TOSpace : ISpace<TO>
     {
         model.train();
 
@@ -42,8 +41,8 @@ public class CrossEntropy(
         {
             var trajectories = Range<int>(trajectoryCount)
                 .Select(
-                    (model, environment, device, length: trajectoryLength, random: _random),
-                    static (t, _) => Trajectory(t.model, t.environment, t.device, t.length, t.random)
+                    (model, environment, length: trajectoryLength, random: _random),
+                    static (t, _) => Trajectory(t.model, t.environment, t.length, t.random)
                 )
                 .ArrayCache();
 
@@ -88,29 +87,30 @@ public class CrossEntropy(
         }
     }
 
-    private static (Tensor states, Tensor actions, float totalReward, bool terminated) Trajectory(
+    private static (Tensor states, Tensor actions, float totalReward, bool terminated) Trajectory<TOSpace>(
         Module<Tensor, Tensor> model,
-        IEnvironment<Box<Array1D<float>>, Discrete, Array1D<float>, int> environment,
-        Device device,
+        IPolicyEnvironment<TOSpace, Discrete, TO, int> environment,
         int length,
         IRandomGenerator random
     )
+        where TOSpace : ISpace<TO>
     {
         var states = new List<Tensor>(length);
         var actions = new List<long>(length);
         var totalReward = 0.0f;
-        var state = as_tensor(environment.Reset(), device: device);
+        var observation = environment.Reset();
 
         var terminated = false;
         foreach (var _ in Range<int>(length))
         {
-            states.Add(state);
+            var tensor = environment.AsTensor(observation);
+            states.Add(tensor);
 
-            var action = ChoiceAction(model, state, random);
+            var action = SelectAction(model, tensor, random);
             actions.Add(action);
 
             var t = environment.Step(action);
-            state = as_tensor(t.NextState, device: device);
+            observation = t.NextObservation ;
 
             totalReward += t.Reward;
 
@@ -121,14 +121,15 @@ public class CrossEntropy(
             }
         }
 
-        return (stack(states), as_tensor(actions, device: device), totalReward, terminated);
+        return (stack(states), as_tensor(actions), totalReward, terminated);
 
-        static int ChoiceAction(
+        static int SelectAction(
             Module<Tensor, Tensor> model,
             Tensor state,
             IRandomGenerator random
         )
         {
+            model.eval();
             using (NewDisposeScope())
             {
                 var predict = model.forward(state);

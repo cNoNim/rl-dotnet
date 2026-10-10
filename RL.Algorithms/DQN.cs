@@ -1,170 +1,203 @@
 using System;
-using System.Collections.Generic;
-using RL.Core;
+using RL.Algorithms.Callbacks;
 using RL.Environments;
-using RL.Environments.Spaces;
-using RL.Generators;
-using RL.MDArrays;
 using RL.Random;
 using TorchSharp;
+using static RL.Generators.Generator;
 using static TorchSharp.torch;
 using static TorchSharp.torch.nn;
+using static TorchSharp.torch.nn.functional;
 using static TorchSharp.torch.nn.utils;
 using static TorchSharp.torch.optim;
-using Generator = RL.Generators.Generator;
 
 namespace RL.Algorithms;
 
-public class DQN(double lr = 1e-4)
+public class DQN<TO> : IAlgorithm<TO, int>
 {
-    private const int BatchSize = 128;
-    private const int FullMemoryCapacity = 10000;
-    private const double Tau = 0.005;
-    private readonly List<Tensor> _actionList = new(BatchSize);
-    private readonly List<Tensor> _nonFinalNextStateList = new(BatchSize);
+    private readonly CallbackCollection<TO, int> _collection = new();
+    private readonly RandomGenerator _random = new();
+    private readonly ReplayBuffer<TO, int> _replayBuffer;
+    private readonly IPolicyEnvironment<TO, int> _environment;
+    private readonly IExploration _exploration;
+    private readonly ICompletion _completion;
+    private readonly ICompletion? _prologCompletion;
+    private readonly ICompletion? _trainPrologCompletion;
+    private readonly Func<TO, int>? _prologHeuristic;
+    private readonly float _gamma;
+    private readonly float _tau;
+    private readonly int _trainFrequency;
+    private readonly int _gradientCount;
+    private readonly int _targetUpdateFrequency;
+    private readonly int _maxGradNorm;
 
-    private readonly IRandomGenerator _random = new RandomGenerator();
-    private readonly List<Tensor> _rewardList = new(BatchSize);
-    private readonly List<Tensor> _stateList = new(BatchSize);
-
-    public (Array1D<double> rewards, int steps, int terminatedSteps) Train<TG>(
-        TG episodeGenerator,
-        Module<Tensor, Tensor> model,
-        Module<Tensor, Tensor> policyModel,
-        IEnvironment<Box<Array1D<float>>, Discrete, Array1D<float>, int> environment
-    ) where TG : IGenerator<int>
+    public DQN(
+        IPolicyEnvironment<TO, int> environment,
+        ReplayBuffer<TO, int> replayBuffer,
+        IExploration exploration,
+        ICompletion completion,
+        ICompletion? prologCompletion = null,
+        ICompletion? trainPrologCompletion = null,
+        Func<TO, int>? prologHeuristic = null,
+        float gamma = 0.99f,
+        float tau = 1.0f,
+        int trainFrequency = 4,
+        int gradientCount = 1,
+        int targetUpdateFrequency = 1,
+        int maxGradNorm = 10
+    )
     {
-        policyModel.load_state_dict(model.state_dict());
-        using var optimizer = AdamW(policyModel.parameters(), lr: lr, amsgrad: true);
-        var memory = new ReplayMemory(FullMemoryCapacity);
-
-        var count = episodeGenerator.Count();
-        var totalRewards = count.Zeroes<double>();
-        var steps = 0;
-        var terminatedSteps = 0;
-        foreach (var episode in episodeGenerator.AsGeneratorEnumerable())
-        {
-            var episodeReward = 0.0;
-
-            var state = environment.Reset();
-
-            foreach (var _ in Generator.Sequence<int>())
-            {
-                var action = SelectAction(episode, policyModel, environment, state, _random);
-
-                var t = environment.Step(action);
-                episodeReward += t.Reward;
-
-                var done = t.Terminated || t.Truncated;
-
-                if (t.Terminated)
-                    terminatedSteps++;
-
-                memory.Push(
-                    as_tensor(state).unsqueeze(0),
-                    full(1, (long)action).unsqueeze(0),
-                    !t.Terminated ? as_tensor(t.NextState).unsqueeze(0) : null,
-                    full(1, t.Reward)
-                );
-                state = t.NextState;
-
-                if (OptimizeModel(batchSize: BatchSize, memory, policyModel, model, optimizer))
-                    steps++;
-
-                var targetModelStateDict = model.state_dict();
-                var policyModelStateDict = policyModel.state_dict();
-
-                foreach (var pair in policyModelStateDict)
-                    targetModelStateDict[pair.Key] = pair.Value * Tau + targetModelStateDict[pair.Key] * (1 - Tau);
-                model.load_state_dict(targetModelStateDict);
-
-                if (done)
-                    break;
-            }
-
-            totalRewards[episode] = episodeReward;
-        }
-
-        return (totalRewards, steps, terminatedSteps);
+        _environment = environment;
+        _replayBuffer = replayBuffer;
+        _exploration = exploration;
+        _completion = completion;
+        _prologCompletion = prologCompletion;
+        _trainPrologCompletion = trainPrologCompletion ?? _prologCompletion;
+        _prologHeuristic = prologHeuristic;
+        _gamma = gamma;
+        _tau = tau;
+        _trainFrequency = trainFrequency;
+        _gradientCount = gradientCount;
+        _targetUpdateFrequency = targetUpdateFrequency;
+        _maxGradNorm = maxGradNorm;
+        _collection.Register(exploration);
+        _collection.Register(completion);
+        if (prologCompletion != null)
+            _collection.Register(prologCompletion);
+        if (trainPrologCompletion != null)
+            _collection.Register(trainPrologCompletion);
     }
 
-    private bool OptimizeModel(
-        int batchSize,
-        ReplayMemory memory,
-        Module<Tensor, Tensor> policyModel,
-        Module<Tensor, Tensor> targetModel,
+    public Transition<TO, int> Transition { get; private set; }
+    public double Loss { get; private set; }
+
+    public bool Register<T>(T callback) where T : ICallbackNode =>
+        _collection.Register(callback);
+
+    public void Learn(
+        Module<Tensor, Tensor> policy,
+        Module<Tensor, Tensor> target,
         Optimizer optimizer
     )
     {
-        const double gamma = 0.99;
-        if (memory.Count < batchSize)
-            return false;
+        target.load_state_dict(policy.state_dict());
 
-        var transitions = memory.Sample(batchSize, _random);
-
-        var nonFinalMask = empty(batchSize, ScalarType.Bool);
-
-        foreach (var (transition, index) in transitions.Index())
+        try
         {
-            _stateList.Add(transition.state);
-            _actionList.Add(transition.action);
-            _rewardList.Add(transition.reward);
-            var terminated = (object?)transition.nextState == null;
-            nonFinalMask[index] = !terminated;
-            if (!terminated)
-                _nonFinalNextStateList.Add(transition.nextState!);
+            _collection.Before(this);
+            _replayBuffer.Clear();
+            var trainStep = 0;
+
+            _environment.Reset();
+            while (true)
+            {
+                var (collectedCount, continueTraining) = Collect(policy);
+                if (_trainPrologCompletion is { Complete: true })
+                {
+                    Train(policy, target, optimizer, _gradientCount <= 0 ? collectedCount : _gradientCount);
+                    trainStep++;
+                    if (trainStep % _targetUpdateFrequency == 0)
+                        target.SoftUpdateBy(policy, _tau);
+                }
+
+                if (!continueTraining)
+                    break;
+            }
         }
-
-        var stateBatch = cat(_stateList);
-        var actionBatch = cat(_actionList);
-        var nonFinalNextStates = cat(_nonFinalNextStateList);
-        var rewardBatch = cat(_rewardList);
-        _stateList.Clear();
-        _actionList.Clear();
-        _nonFinalNextStateList.Clear();
-        _rewardList.Clear();
-
-        var predict = policyModel.call(stateBatch);
-        var stateActionValues = predict.gather(1, actionBatch);
-
-        var nextStateValues = zeros(batchSize);
-        using (no_grad())
-            nextStateValues[nonFinalMask] = targetModel.call(nonFinalNextStates).max(1).values;
-
-        var expectedStateActionValues = nextStateValues * gamma + rewardBatch;
-
-        var output = SmoothL1Loss().call(stateActionValues, expectedStateActionValues.unsqueeze(1));
-
-        optimizer.zero_grad();
-        output.backward();
-        clip_grad_value_(policyModel.parameters(), 100);
-        optimizer.step();
-        return true;
+        finally
+        {
+            _collection.After(this);
+        }
     }
 
-    private static int SelectAction<TOSpace, TO>(
-        int step,
-        Module<Tensor, Tensor> policyModel,
-        IEnvironment<TOSpace, Discrete, TO, int> environment,
-        Array1D<float> state,
-        IRandomGenerator random
-    ) where TOSpace : ISpace<TO>
+    private (int collectedCount, bool continueTraining) Collect(Module<Tensor, Tensor> policy)
     {
-        const double epsilonStart = 0.9;
-        const double epsilonEnd = 0.05;
-        const double epsilonDecay = 100;
-
-        var sample = random.Random(0.0, 1.0);
-        var epsilonThreshold = epsilonEnd + (epsilonStart - epsilonEnd) * Math.Exp(-1.0 * step / epsilonDecay);
-
-        if (sample <= epsilonThreshold)
-            return environment.ActionSpace.Sample(random);
-
-        using (no_grad())
+        try
         {
-            var s = as_tensor(state);
-            var predict = policyModel.call(s);
-            return (int)predict.max(-1).indexes.ToInt64();
+            _collection.BeforeCollect(this);
+            policy.eval();
+            var collectedCount = 0;
+            while (NeedCollectMore())
+            {
+                var action = SampleAction();
+                _collection.BeforeStep(this);
+                Transition = _environment.Step(action);
+                _replayBuffer.Push(Transition);
+                collectedCount++;
+                _collection.Step(this);
+                if (_completion.Complete)
+                    return (collectedCount, false);
+            }
+
+            return (collectedCount, true);
+
+            bool NeedCollectMore() =>
+                collectedCount < _trainFrequency;
+
+            int SampleAction()
+            {
+                if (_prologCompletion is { Complete: false })
+                    return _prologHeuristic?.Invoke(_environment.Observation) ?? _environment.SampleAction(_random);
+
+                if (_random.Random(0.0, 1.0) < _exploration.Epsilon)
+                    return _environment.SampleAction(_random);
+
+                using (no_grad())
+                {
+                    var o = _environment.AsTensor(_environment.Observation);
+                    var predict = policy.call(o);
+                    return _environment.FromTensor(predict);
+                }
+            }
+        }
+        finally
+        {
+            _collection.AfterCollect(this);
+        }
+    }
+
+    private void Train(
+        Module<Tensor, Tensor> policy,
+        Module<Tensor, Tensor> target,
+        Optimizer optimizer,
+        int count
+    )
+    {
+        try
+        {
+            _collection.BeforeTrain(this);
+            policy.train();
+            foreach (var _ in Range(count))
+                using (NewDisposeScope())
+                {
+                    var (observations, actions, nextObservations, rewards, nonFinals) =
+                        _replayBuffer.Sample(_random);
+
+                    Tensor targetQValues;
+                    using (no_grad())
+                    {
+                        var nextQValues = target.call(nextObservations);
+                        nextQValues = nextQValues.max(1).values;
+                        nextQValues = nextQValues.reshape(-1, 1);
+                        targetQValues = rewards + nonFinals * _gamma * nextQValues;
+                    }
+
+                    var currentQValues = policy.call(observations);
+                    currentQValues = currentQValues.gather(1, actions.@long());
+
+                    var loss = smooth_l1_loss(currentQValues, targetQValues);
+
+                    optimizer.zero_grad();
+                    loss.backward();
+                    clip_grad_norm_(policy.parameters(), _maxGradNorm);
+                    optimizer.step();
+
+                    Loss = loss.ToDouble();
+                    _collection.TrainStep(this);
+                }
+        }
+        finally
+        {
+            _collection.AfterTrain(this);
         }
     }
 }

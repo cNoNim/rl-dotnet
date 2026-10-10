@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>disable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsAotCompatible>true</IsAotCompatible>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <PublishAot>true</PublishAot>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\RL.Algorithms\RL.Algorithms.csproj" />
+      <ProjectReference Include="..\RL.Classic\RL.Classic.csproj" />
+      <ProjectReference Include="..\RL.Plot\RL.Plot.csproj" />
+      <ProjectReference Include="..\RL.Progress\RL.Progress.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="TorchSharp-cpu" Version="0.101.5"/>
+    </ItemGroup>
+
+</Project>

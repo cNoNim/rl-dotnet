@@ -1,9 +1,12 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using RL.Core;
 
 namespace RL.Generators;
 
+[DebuggerTypeProxy(typeof(GeneratorDebugView))]
+[DebuggerDisplay("Count = {Count}")]
 public readonly struct ReadOnlyAdapter<T>(IReadOnlyList<T> list) :
     IGenerator<ReadOnlyAdapter<T>, T>
 {

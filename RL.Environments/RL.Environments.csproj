@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\RL.MDArrays\RL.MDArrays.csproj" />
       <ProjectReference Include="..\RL.Random\RL.Random.csproj" />
     </ItemGroup>
 

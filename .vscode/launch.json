@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C#: RL.CartPole",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/RL.CartPole/RL.CartPole.csproj",
+            "launchConfigurationId": "TargetFramework=;RL.CartPole"
+        },
+        {
+            "name": "Launch",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/RL.CartPole/bin/Debug/net8.0/RL.CartPole.exe",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

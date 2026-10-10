@@ -1,19 +1,24 @@
 ﻿using System.Drawing;
 using System.Runtime.CompilerServices;
-using OpenTK.Graphics.OpenGL;
-using OpenTK.Mathematics;
+using Silk.NET.Maths;
+using Silk.NET.OpenGL;
 using Vector2 = System.Numerics.Vector2;
 
 namespace RL.Draw;
 
-public partial class Drawer(Camera camera) : IDisposable
+public partial class Drawer : IDisposable
 {
-    private readonly Lines _lines = new(camera);
-    private readonly Points _points = new(camera);
-    private readonly Triangles _triangles = new(camera);
+    private readonly Points _points;
+    private readonly Lines _lines;
+    private readonly Triangles _triangles;
     private bool _disposed;
 
-    public Camera Camera => camera;
+    public Drawer(GL gl, IProjectionMatrixBuilder projectionMatrixBuilder)
+    {
+        _points = new Points(gl, projectionMatrixBuilder);
+        _lines = new Lines(gl, projectionMatrixBuilder);
+        _triangles = new Triangles(gl, projectionMatrixBuilder);
+    }
 
     public void Dispose()
     {
@@ -49,60 +54,60 @@ public partial class Drawer(Camera camera) : IDisposable
     public void Add(Vector2 v1, Vector2 v2, Vector2 v3, Color color) =>
         _triangles.Add(v1, v2, v3, color);
 
-    private static void CheckError()
+    private static void CheckError(GL gl)
     {
-        var errorCode = GL.GetError();
-        if (errorCode != ErrorCode.NoError)
+        var errorCode = gl.GetError();
+        if (errorCode != GLEnum.NoError)
             throw new Exception($"{errorCode}");
     }
 
-    private static int CreateShaderFromString(string source, ShaderType type)
+    private static uint CreateShaderFromString(GL gl, string source, ShaderType type)
     {
-        var shaderId = GL.CreateShader(type);
-        GL.ShaderSource(shaderId, source);
-        GL.CompileShader(shaderId);
-        GL.GetShader(shaderId, ShaderParameter.CompileStatus, out var compileStatus);
+        var shaderId = gl.CreateShader(type);
+        gl.ShaderSource(shaderId, source);
+        gl.CompileShader(shaderId);
+        gl.GetShader(shaderId, GLEnum.CompileStatus, out var compileStatus);
         if (compileStatus != 0)
             return shaderId;
-        var infoLog = GL.GetShaderInfoLog(shaderId);
-        GL.DeleteShader(shaderId);
+        var infoLog = gl.GetShaderInfoLog(shaderId);
+        gl.DeleteShader(shaderId);
         if (infoLog != null)
             throw new Exception($"Error compiling shader of type {type}: {infoLog}");
         throw new Exception($"Error compiling shader of type {type}!");
     }
 
-    private static int CreateShaderProgram(string vs, string fs)
+    private static uint CreateShaderProgram(GL gl, string vs, string fs)
     {
-        var vsId = CreateShaderFromString(vs, ShaderType.VertexShader);
-        var fsId = CreateShaderFromString(fs, ShaderType.FragmentShader);
+        var vsId = CreateShaderFromString(gl, vs, ShaderType.VertexShader);
+        var fsId = CreateShaderFromString(gl, fs, ShaderType.FragmentShader);
 
-        var programId = GL.CreateProgram();
-        GL.AttachShader(programId, vsId);
-        GL.AttachShader(programId, fsId);
-        GL.BindFragDataLocation(programId, 0, "color");
-        GL.LinkProgram(programId);
+        var programId = gl.CreateProgram();
+        gl.AttachShader(programId, vsId);
+        gl.AttachShader(programId, fsId);
+        gl.BindFragDataLocation(programId, 0, "color");
+        gl.LinkProgram(programId);
 
-        GL.DeleteShader(vsId);
-        GL.DeleteShader(fsId);
+        gl.DeleteShader(vsId);
+        gl.DeleteShader(fsId);
 
-        GL.GetProgram(programId, GetProgramParameterName.LinkStatus, out var linkStatus);
+        gl.GetProgram(programId, GLEnum.LinkStatus, out var linkStatus);
         if (linkStatus != 0)
             return programId;
-        var infoLog = GL.GetProgramInfoLog(programId);
-        GL.DeleteProgram(programId);
+        var infoLog = gl.GetProgramInfoLog(programId);
+        gl.DeleteProgram(programId);
         if (infoLog != null)
             throw new Exception($"Error linking program: {infoLog}");
         throw new Exception($"Error linking program!");
     }
 
-    private static Vector4h ConvertColor(Color color) =>
+    private static Vector4D<Half> ConvertColor(Color color) =>
         new(
-            color.R / (float)byte.MaxValue,
-            color.G / (float)byte.MaxValue,
-            color.B / (float)byte.MaxValue,
-            color.A / (float)byte.MaxValue
+            color.R / (Half)byte.MaxValue,
+            color.G / (Half)byte.MaxValue,
+            color.B / (Half)byte.MaxValue,
+            color.A / (Half)byte.MaxValue
         );
 
-    private static OpenTK.Mathematics.Vector2 ConvertVector(Vector2 position) =>
-        Unsafe.As<Vector2, OpenTK.Mathematics.Vector2>(ref position);
+    private static Vector2D<float> ConvertVector(Vector2 position) =>
+        Unsafe.As<Vector2, Vector2D<float>>(ref position);
 }

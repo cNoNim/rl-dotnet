@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="OpenTK.Graphics" Version="4.8.2"/>
+        <PackageReference Include="Silk.NET.OpenGL" Version="2.20.0" />
     </ItemGroup>
 
 </Project>

@@ -1,21 +1,30 @@
 using System;
-using RL.MDArrays;
-using TorchSharp;
+using RL.Environments.Spaces;
 using static TorchSharp.torch;
 using static TorchSharp.torch.nn;
 
 namespace RL.Algorithms;
 
-public class ModelAgent(Module<Tensor, Tensor> model) : IAgent<Array1D<float>, int>, IDisposable
+public class ModelAgent<TOSpace, TASpace, TO, TA>(
+    IPolicyEnvironment<TOSpace, TASpace, TO, TA> environment,
+    Module<Tensor, Tensor> model,
+    string? name = null
+) :
+    IAgent<TO, TA>, IDisposable
+    where TOSpace : ISpace<TO>
+    where TASpace : ISpace<TA>
 {
-    public string Name => model.GetName();
+    public string Name => name ?? model.GetName();
 
-    public int Predict(Array1D<float> state)
+    public TA Predict(TO state)
     {
         model.eval();
-        var input = as_tensor(state);
-        var predict = model.forward(input);
-        return (int)predict.max(-1).indexes.ToInt64();
+        using (NewDisposeScope())
+        {
+            var input = environment.AsTensor(state);
+            var predict = model.forward(input);
+            return environment.FromTensor(predict);
+        }
     }
 
     public void Dispose()

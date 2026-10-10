@@ -131,6 +131,12 @@ public class TaxiEnvironment : EnvironmentBase<Discrete, Discrete, int, int>
     }
 
     public override Discrete ActionSpace { get; } = new(ActionCount);
+    public override int SampleObservation(IRandomGenerator random) =>
+        random.Random(0, ObservationSpace.Size);
+
+    public override int SampleAction(IRandomGenerator random) =>
+        random.Random(0, ActionSpace.Size);
+
     public override Discrete ObservationSpace { get; } = new(StateCount);
 
     protected override (int nextState, float reward, bool terminated) DoStep(int state, int action)

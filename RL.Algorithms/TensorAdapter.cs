@@ -1,9 +1,12 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using RL.Core;
+using RL.Generators;
 using TorchSharp.Utils;
 
 namespace RL.Algorithms;
 
+[DebuggerTypeProxy(typeof(GeneratorDebugView))]
 public readonly struct TensorAdapter<T>(TensorAccessor<T> accessor) :
     IGenerator<TensorAdapter<T>, T>
     where T : unmanaged
